@@ -2,6 +2,14 @@
 # Async hook: run linter after file edits
 # Runs in background, reports results to Claude
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/load-config.sh"
+
+# Check if lint is required by config
+if [ "$(pipeline_require_lint)" != "true" ]; then
+  exit 0
+fi
+
 INPUT=$(cat)
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 

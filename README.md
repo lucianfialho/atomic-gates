@@ -54,7 +54,63 @@ claude plugin add /path/to/claude-dev-pipeline
 /batch-issues
 ```
 
-## Customization
+## Configuration
+
+Create a `pipeline.config.json` in your repo root (or `.claude/`) to customize behavior:
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/lucianfialho/claude-dev-pipeline/main/schemas/pipeline-config.schema.json",
+  "specialists": {
+    "defaults": ["code-reviewer"],
+    "filePatterns": {
+      "src/components/**": "frontend-dev",
+      "src/api/**": "backend-dev",
+      "**/*.test.*": "qa-engineer",
+      "**/*.tsx": "ux-designer"
+    }
+  },
+  "issues": {
+    "label": "claude",
+    "branchPrefix": "fix",
+    "autoAssign": true
+  },
+  "batch": {
+    "maxParallel": 3
+  },
+  "quality": {
+    "requireTests": true,
+    "requireBuild": true,
+    "requireLint": true
+  },
+  "review": {
+    "securityCheck": true,
+    "performanceCheck": true,
+    "maxFileReviewSize": 500
+  }
+}
+```
+
+All fields are optional — defaults are used for anything not specified. The `$schema` field enables autocompletion in VS Code and other editors.
+
+### Configuration Reference
+
+| Section | Key | Default | Description |
+|---------|-----|---------|-------------|
+| `specialists` | `defaults` | `["code-reviewer"]` | Specialists that always run on reviews |
+| `specialists` | `filePatterns` | `{}` | Map file globs to specialists |
+| `issues` | `label` | `"claude"` | GitHub label for issue discovery |
+| `issues` | `branchPrefix` | `"fix"` | Branch naming prefix |
+| `issues` | `autoAssign` | `true` | Auto-assign issues when solving |
+| `batch` | `maxParallel` | `3` | Max parallel agents (1-10) |
+| `quality` | `requireTests` | `true` | Run tests before stopping |
+| `quality` | `requireBuild` | `true` | Run build before task completion |
+| `quality` | `requireLint` | `true` | Run linter after file edits |
+| `review` | `securityCheck` | `true` | Include security checklist |
+| `review` | `performanceCheck` | `true` | Include performance checklist |
+| `review` | `maxFileReviewSize` | `500` | Max lines per file to review |
+
+## Other Customization
 
 - Edit `REVIEW.md` for project-specific review rules
 - Adjust hook timeouts in `hooks/hooks.json`

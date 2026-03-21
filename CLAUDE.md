@@ -12,19 +12,27 @@ An autonomous development pipeline plugin for Claude Code.
 ## Architecture
 
 ```
+pipeline.config.json  — User-customizable settings (optional, has defaults)
+schemas/
+  pipeline-config.schema.json — JSON Schema for IDE autocompletion
+
 skills/
-  solve-issue.md      — Pick and solve a GitHub issue end-to-end
-  batch-issues.md     — Process multiple issues in parallel
-  review-rules.md     — Code review guidelines (loaded by REVIEW.md)
+  solve-issue/SKILL.md   — Pick and solve a GitHub issue end-to-end
+  batch-issues/SKILL.md  — Process multiple issues in parallel
+  code-reviewer/SKILL.md — Code review specialist
+  frontend-dev/SKILL.md  — Frontend development specialist
+  backend-dev/SKILL.md   — Backend development specialist
+  qa-engineer/SKILL.md   — QA and testing specialist
+  ux-designer/SKILL.md   — UX/UI review specialist
 
 hooks/
   hooks.json          — Quality gate hooks (Stop, PostToolUse, TaskCompleted)
 
 scripts/
+  load-config.sh      — Config loader (sources pipeline.config.json)
   check-tests.sh      — Verify tests pass before stopping
   check-lint.sh       — Run linter after file edits
   check-build.sh      — Verify build succeeds
-  validate-pr.sh      — Validate PR before creation
 ```
 
 ## Usage
