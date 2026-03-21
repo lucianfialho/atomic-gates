@@ -51,4 +51,5 @@ Then:
 /review-pr frontend      — Review current PR with frontend specialist
 /review-pr security      — Security-focused review
 /review-pr all           — Run all applicable specialists
+/suggest-tests           — Suggest missing tests for the current PR
 ```
