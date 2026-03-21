@@ -39,4 +39,5 @@ Then:
 /solve-issue 42          — Solve issue #42
 /solve-issue             — Pick the next unassigned issue
 /batch-issues            — Process all open issues labeled "claude"
+/ux-review               — UX-focused review of UI changes in current PR
 ```

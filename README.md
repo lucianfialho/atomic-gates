@@ -26,6 +26,9 @@ Solve a single GitHub issue end-to-end:
 ### `/batch-issues`
 Process multiple issues labeled "claude" in parallel using agent teams.
 
+### `/ux-review [pr_number]`
+UX-focused review of UI changes — Nielsen's heuristics, accessibility (WCAG 2.1 AA), interaction design, and missing states. Works as `@claude ux-review` in PR comments.
+
 ## Quality Gates (Hooks)
 
 | Hook | When | What |
