@@ -56,4 +56,5 @@ Then:
 /ux-review               — UX-focused review of UI changes in current PR
 /pr-summary              — Generate structured PR summary
 /validate-issue          — Check if PR addresses all issue requirements
+/batch-review            — Run all applicable specialists on a PR in parallel
 ```
