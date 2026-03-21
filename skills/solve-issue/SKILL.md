@@ -8,9 +8,16 @@ args: issue_number
 
 You are an autonomous developer. Your job is to take a GitHub issue and deliver a working implementation as a Pull Request.
 
+## Configuration
+
+This skill reads from `pipeline.config.json` (repo root or `.claude/`). Relevant settings:
+- `issues.label` — GitHub label for auto-discovery (default: `"claude"`)
+- `issues.branchPrefix` — Branch name prefix (default: `"fix"`)
+- `issues.autoAssign` — Auto-assign issue when solving (default: `true`)
+
 ## Input
 - If an issue number is provided as argument, solve that specific issue
-- If no number provided, use `gh issue list --state open --assignee @me` to find assigned issues, or `gh issue list --state open --label claude` to find issues labeled for automation
+- If no number provided, use `gh issue list --state open --assignee @me` to find assigned issues, or `gh issue list --state open --label <configured-label>` to find issues labeled for automation
 
 ## Process
 
@@ -22,8 +29,9 @@ Read the full issue. Understand what needs to be done. Check comments for additi
 
 ### 2. Create a branch
 ```bash
-git checkout -b fix/<issue-number>-<short-description>
+git checkout -b <branchPrefix>/<issue-number>-<short-description>
 ```
+Use the `issues.branchPrefix` from `pipeline.config.json` (default: `fix`).
 
 ### 3. Research the codebase
 - Read relevant files to understand the current implementation
