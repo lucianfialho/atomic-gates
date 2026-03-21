@@ -26,6 +26,9 @@ Solve a single GitHub issue end-to-end:
 ### `/batch-issues`
 Process multiple issues labeled "claude" in parallel using agent teams.
 
+### `/validate-issue [pr_number]`
+Validate that a PR addresses all requirements from its linked GitHub issue — met, missing, partial, and out-of-scope. Works as `@claude validate-issue` in PR comments.
+
 ## Quality Gates (Hooks)
 
 | Hook | When | What |
