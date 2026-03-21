@@ -46,6 +46,9 @@ Analyze a PR diff and suggest missing tests — edge cases, integration gaps, an
 
 Works as `@claude suggest tests` in GitHub PR comments.
 
+### `/check-security [pr_number]`
+Security-focused review covering OWASP Top 10, hardcoded secrets, auth gaps, and dependency vulnerabilities. Works as `@claude check security` in PR comments.
+
 ## Quality Gates (Hooks)
 
 | Hook | When | What |
