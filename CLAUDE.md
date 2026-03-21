@@ -53,4 +53,5 @@ Then:
 /review-pr all           — Run all applicable specialists
 /suggest-tests           — Suggest missing tests for the current PR
 /check-security          — Security-focused review of current PR
+/ux-review               — UX-focused review of UI changes in current PR
 ```

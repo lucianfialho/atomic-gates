@@ -49,6 +49,9 @@ Works as `@claude suggest tests` in GitHub PR comments.
 ### `/check-security [pr_number]`
 Security-focused review covering OWASP Top 10, hardcoded secrets, auth gaps, and dependency vulnerabilities. Works as `@claude check security` in PR comments.
 
+### `/ux-review [pr_number]`
+UX-focused review of UI changes — Nielsen's heuristics, accessibility (WCAG 2.1 AA), interaction design, and missing states. Works as `@claude ux-review` in PR comments.
+
 ## Quality Gates (Hooks)
 
 | Hook | When | What |
