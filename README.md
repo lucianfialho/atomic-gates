@@ -26,6 +26,9 @@ Solve a single GitHub issue end-to-end:
 ### `/batch-issues`
 Process multiple issues labeled "claude" in parallel using agent teams.
 
+### `/pr-summary [pr_number]`
+Generate a structured PR summary — what changed, why, impact (breaking changes, new deps, env vars), and review focus areas. Works as `@claude summarize` in PR comments.
+
 ## Quality Gates (Hooks)
 
 | Hook | When | What |
