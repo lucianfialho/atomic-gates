@@ -5,14 +5,21 @@ description: Process multiple GitHub issues in parallel using agent teams
 
 # Batch Process Issues
 
-Process multiple open GitHub issues labeled "claude" in parallel.
+Process multiple open GitHub issues in parallel.
+
+## Configuration
+
+This skill reads from `pipeline.config.json` (repo root or `.claude/`). Relevant settings:
+- `issues.label` — GitHub label to filter issues (default: `"claude"`)
+- `batch.maxParallel` — Maximum parallel agents (default: `3`)
 
 ## Process
 
 ### 1. List available issues
 ```bash
-gh issue list --state open --label claude --json number,title,labels
+gh issue list --state open --label <configured-label> --json number,title,labels
 ```
+Use the `issues.label` from `pipeline.config.json` (default: `claude`).
 
 ### 2. For each issue, spawn a subagent
 Use the Agent tool with `isolation: "worktree"` for each issue:
@@ -26,7 +33,7 @@ Use the Agent tool with `isolation: "worktree"` for each issue:
 - Summarize all PRs at the end
 
 ## Rules
-- Maximum 3 parallel agents to avoid rate limits
+- Maximum `batch.maxParallel` parallel agents (default: 3) to avoid rate limits
 - Each agent creates its own branch and PR
 - If an agent fails, log the error and continue with others
 - Report final summary: issues solved, PRs created, failures

@@ -1,0 +1,30 @@
+{
+  "$schema": "./schemas/pipeline-config.schema.json",
+  "specialists": {
+    "defaults": ["code-reviewer"],
+    "filePatterns": {
+      "src/components/**": "frontend-dev",
+      "src/api/**": "backend-dev",
+      "**/*.test.*": "qa-engineer",
+      "**/*.tsx": "ux-designer"
+    }
+  },
+  "issues": {
+    "label": "claude",
+    "branchPrefix": "fix",
+    "autoAssign": true
+  },
+  "batch": {
+    "maxParallel": 3
+  },
+  "quality": {
+    "requireTests": true,
+    "requireBuild": true,
+    "requireLint": true
+  },
+  "review": {
+    "securityCheck": true,
+    "performanceCheck": true,
+    "maxFileReviewSize": 500
+  }
+}
