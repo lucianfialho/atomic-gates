@@ -26,6 +26,11 @@ Solve a single GitHub issue end-to-end:
 ### `/batch-issues`
 Process multiple issues labeled "claude" in parallel using agent teams.
 
+### `/suggest-tests [pr_number]`
+Analyze a PR diff and suggest missing tests — edge cases, integration gaps, and regression risks. Provides skeleton test code using the project's framework.
+
+Works as `@claude suggest tests` in GitHub PR comments.
+
 ## Quality Gates (Hooks)
 
 | Hook | When | What |

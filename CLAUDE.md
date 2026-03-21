@@ -39,4 +39,5 @@ Then:
 /solve-issue 42          — Solve issue #42
 /solve-issue             — Pick the next unassigned issue
 /batch-issues            — Process all open issues labeled "claude"
+/suggest-tests           — Suggest missing tests for the current PR
 ```
