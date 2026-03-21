@@ -41,6 +41,11 @@ Run targeted code reviews on the current PR using specialist skills:
 
 Works with `@claude` in GitHub PR comments for on-demand specialist reviews.
 
+### `/suggest-tests [pr_number]`
+Analyze a PR diff and suggest missing tests — edge cases, integration gaps, and regression risks. Provides skeleton test code using the project's framework.
+
+Works as `@claude suggest tests` in GitHub PR comments.
+
 ### `/check-security [pr_number]`
 Security-focused review covering OWASP Top 10, hardcoded secrets, auth gaps, and dependency vulnerabilities. Works as `@claude check security` in PR comments.
 
