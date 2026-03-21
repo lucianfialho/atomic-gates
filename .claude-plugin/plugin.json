@@ -1,0 +1,9 @@
+{
+  "name": "dev-pipeline",
+  "description": "End-to-end autonomous development pipeline: issues → code → PR → review with quality gates and specialist skills.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Lucian Fialho",
+    "email": "lucian@fialho.dev"
+  }
+}
