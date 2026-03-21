@@ -1,0 +1,43 @@
+{
+  "description": "Quality gates for autonomous development pipeline",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/check-tests.sh",
+            "timeout": 120,
+            "statusMessage": "Running quality gates..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/check-lint.sh",
+            "async": true,
+            "timeout": 30,
+            "statusMessage": "Linting..."
+          }
+        ]
+      }
+    ],
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/check-build.sh",
+            "timeout": 120,
+            "statusMessage": "Verifying build..."
+          }
+        ]
+      }
+    ]
+  }
+}

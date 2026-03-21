@@ -1,0 +1,6 @@
+{
+  "name": "dev-pipeline",
+  "version": "0.1.0",
+  "description": "End-to-end autonomous development pipeline: issues → code → PR → review. Picks up GitHub issues, implements them, runs tests, and creates PRs with automated quality gates.",
+  "author": "lucianfialho"
+}
