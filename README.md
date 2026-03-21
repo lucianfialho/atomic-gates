@@ -4,13 +4,15 @@ An autonomous development pipeline plugin for Claude Code. Picks up GitHub issue
 
 ## Install
 
-```bash
-claude plugin add /path/to/claude-dev-pipeline
+Add the marketplace and install the plugin (inside Claude Code):
+```
+/plugin marketplace add lucianfialho/claude-dev-pipeline
+/plugin install dev-pipeline
 ```
 
-Or from GitHub:
+Or load directly from a local directory:
 ```bash
-claude plugin add github:lucianfialho/claude-dev-pipeline
+claude --plugin-dir /path/to/claude-dev-pipeline
 ```
 
 ## Skills
@@ -38,20 +40,19 @@ Process multiple issues labeled "claude" in parallel using agent teams.
 
 Include `REVIEW.md` in your repo root (or copy ours) for automated PR review guidelines. Works with Claude Code Review.
 
-## Usage with Foundd (example)
+## Usage
 
 ```bash
-# Install the plugin
-claude plugin add /path/to/claude-dev-pipeline
+# After installing, use the skills inside Claude Code:
 
 # Solve a specific issue
-/solve-issue 1
+/dev-pipeline:solve-issue 1
 
 # Or let Claude pick from labeled issues
-/solve-issue
+/dev-pipeline:solve-issue
 
 # Process all "claude" labeled issues
-/batch-issues
+/dev-pipeline:batch-issues
 ```
 
 ## Customization
