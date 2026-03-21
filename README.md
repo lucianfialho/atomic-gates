@@ -26,6 +26,9 @@ Solve a single GitHub issue end-to-end:
 ### `/batch-issues`
 Process multiple issues labeled "claude" in parallel using agent teams.
 
+### `/batch-review [pr_number]`
+Run all applicable specialist reviews on a PR in parallel using subagents. Produces a unified report with per-specialist findings and a combined verdict. Automatically selects specialists based on changed file types.
+
 ## Quality Gates (Hooks)
 
 | Hook | When | What |
