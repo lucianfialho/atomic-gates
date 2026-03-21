@@ -1,5 +1,16 @@
 # Code Review Guidelines
 
+This file contains the base review rules. Domain-specific rules are in `review-rules/`:
+
+| Rule File | When Loaded | Applies To |
+|-----------|------------|------------|
+| `review-rules/base.md` | Always | All files |
+| `review-rules/frontend.md` | `.tsx`, `.jsx`, `.css`, `.scss` | UI components, styling |
+| `review-rules/backend.md` | `route.ts`, `actions.ts`, `api/` | API, server logic |
+| `review-rules/security.md` | Security review or sensitive files | Auth, input, secrets |
+| `review-rules/database.md` | Migrations, schemas, ORM models | DB queries, migrations |
+| `review-rules/performance.md` | Performance review requested | Rendering, data fetching |
+
 ## Always check
 - New features have corresponding tests
 - No hardcoded secrets, API keys, or credentials

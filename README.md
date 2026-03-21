@@ -4,13 +4,15 @@ An autonomous development pipeline plugin for Claude Code. Picks up GitHub issue
 
 ## Install
 
-```bash
-claude plugin add /path/to/claude-dev-pipeline
+Add the marketplace and install the plugin (inside Claude Code):
+```
+/plugin marketplace add lucianfialho/claude-dev-pipeline
+/plugin install dev-pipeline
 ```
 
-Or from GitHub:
+Or load directly from a local directory:
 ```bash
-claude plugin add github:lucianfialho/claude-dev-pipeline
+claude --plugin-dir /path/to/claude-dev-pipeline
 ```
 
 ## Skills
@@ -25,6 +27,36 @@ Solve a single GitHub issue end-to-end:
 
 ### `/batch-issues`
 Process multiple issues labeled "claude" in parallel using agent teams.
+
+### `/review-pr [specialist]`
+Run targeted code reviews on the current PR using specialist skills:
+
+```
+/review-pr frontend     — React/Next.js, components, a11y, performance
+/review-pr backend      — API design, security, DB patterns, error handling
+/review-pr security     — Security-focused checklist (OWASP, secrets, auth)
+/review-pr ux           — UX heuristics, accessibility, visual hierarchy
+/review-pr all          — Run all applicable specialists (default)
+```
+
+Works with `@claude` in GitHub PR comments for on-demand specialist reviews.
+
+### `/suggest-tests [pr_number]`
+Analyze a PR diff and suggest missing tests — edge cases, integration gaps, and regression risks. Provides skeleton test code using the project's framework.
+
+Works as `@claude suggest tests` in GitHub PR comments.
+
+### `/check-security [pr_number]`
+Security-focused review covering OWASP Top 10, hardcoded secrets, auth gaps, and dependency vulnerabilities. Works as `@claude check security` in PR comments.
+
+### `/ux-review [pr_number]`
+UX-focused review of UI changes — Nielsen's heuristics, accessibility (WCAG 2.1 AA), interaction design, and missing states. Works as `@claude ux-review` in PR comments.
+
+### `/pr-summary [pr_number]`
+Generate a structured PR summary — what changed, why, impact (breaking changes, new deps, env vars), and review focus areas. Works as `@claude summarize` in PR comments.
+
+### `/validate-issue [pr_number]`
+Validate that a PR addresses all requirements from its linked GitHub issue — met, missing, partial, and out-of-scope. Works as `@claude validate-issue` in PR comments.
 
 ### `/batch-review [pr_number]`
 Run all applicable specialist reviews on a PR in parallel using subagents. Produces a unified report with per-specialist findings and a combined verdict. Automatically selects specialists based on changed file types.
@@ -41,23 +73,78 @@ Run all applicable specialist reviews on a PR in parallel using subagents. Produ
 
 Include `REVIEW.md` in your repo root (or copy ours) for automated PR review guidelines. Works with Claude Code Review.
 
-## Usage with Foundd (example)
+## Usage
 
 ```bash
-# Install the plugin
-claude plugin add /path/to/claude-dev-pipeline
+# After installing, use the skills inside Claude Code:
 
 # Solve a specific issue
-/solve-issue 1
+/dev-pipeline:solve-issue 1
 
 # Or let Claude pick from labeled issues
-/solve-issue
+/dev-pipeline:solve-issue
 
 # Process all "claude" labeled issues
-/batch-issues
+/dev-pipeline:batch-issues
 ```
 
-## Customization
+## Configuration
+
+Create a `pipeline.config.json` in your repo root (or `.claude/`) to customize behavior:
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/lucianfialho/claude-dev-pipeline/main/schemas/pipeline-config.schema.json",
+  "specialists": {
+    "defaults": ["code-reviewer"],
+    "filePatterns": {
+      "src/components/**": "frontend-dev",
+      "src/api/**": "backend-dev",
+      "**/*.test.*": "qa-engineer",
+      "**/*.tsx": "ux-designer"
+    }
+  },
+  "issues": {
+    "label": "claude",
+    "branchPrefix": "fix",
+    "autoAssign": true
+  },
+  "batch": {
+    "maxParallel": 3
+  },
+  "quality": {
+    "requireTests": true,
+    "requireBuild": true,
+    "requireLint": true
+  },
+  "review": {
+    "securityCheck": true,
+    "performanceCheck": true,
+    "maxFileReviewSize": 500
+  }
+}
+```
+
+All fields are optional — defaults are used for anything not specified. The `$schema` field enables autocompletion in VS Code and other editors.
+
+### Configuration Reference
+
+| Section | Key | Default | Description |
+|---------|-----|---------|-------------|
+| `specialists` | `defaults` | `["code-reviewer"]` | Specialists that always run on reviews |
+| `specialists` | `filePatterns` | `{}` | Map file globs to specialists |
+| `issues` | `label` | `"claude"` | GitHub label for issue discovery |
+| `issues` | `branchPrefix` | `"fix"` | Branch naming prefix |
+| `issues` | `autoAssign` | `true` | Auto-assign issues when solving |
+| `batch` | `maxParallel` | `3` | Max parallel agents (1-10) |
+| `quality` | `requireTests` | `true` | Run tests before stopping |
+| `quality` | `requireBuild` | `true` | Run build before task completion |
+| `quality` | `requireLint` | `true` | Run linter after file edits |
+| `review` | `securityCheck` | `true` | Include security checklist |
+| `review` | `performanceCheck` | `true` | Include performance checklist |
+| `review` | `maxFileReviewSize` | `500` | Max lines per file to review |
+
+## Other Customization
 
 - Edit `REVIEW.md` for project-specific review rules
 - Adjust hook timeouts in `hooks/hooks.json`

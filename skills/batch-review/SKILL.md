@@ -17,15 +17,14 @@ This is the "premium" review mode — dispatches up to 3 specialists simultaneou
 /batch-review 42         — Full review of PR #42
 ```
 
-Also invoked by `/review-pr all`.
-
 ## Prerequisites
 
-Depends on these skills being available:
-- `/review-pr` — Individual specialist dispatch
-- `/check-security` — Security-focused review
-- `/suggest-tests` — Test coverage suggestions
-- `/ux-review` — UX/accessibility review
+Depends on these specialist skills being available:
+- `code-reviewer` — Code quality and security review
+- `frontend-dev` — Frontend/React specialist
+- `backend-dev` — Backend/API specialist
+- `ux-designer` — UX/accessibility review
+- `qa-engineer` — Test coverage and quality
 
 ## Process
 

@@ -2,11 +2,19 @@
 # Quality gate: verify tests pass before Claude stops
 # Exit 0 = allow stop, Exit 2 = block stop with reason
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/load-config.sh"
+
 INPUT=$(cat)
 STOP_HOOK_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // false')
 
 # Don't loop — if we already ran this check, allow stop
 if [ "$STOP_HOOK_ACTIVE" = "true" ]; then
+  exit 0
+fi
+
+# Check if tests are required by config
+if [ "$(pipeline_require_tests)" != "true" ]; then
   exit 0
 fi
 
