@@ -52,6 +52,9 @@ Security-focused review covering OWASP Top 10, hardcoded secrets, auth gaps, and
 ### `/ux-review [pr_number]`
 UX-focused review of UI changes — Nielsen's heuristics, accessibility (WCAG 2.1 AA), interaction design, and missing states. Works as `@claude ux-review` in PR comments.
 
+### `/pr-summary [pr_number]`
+Generate a structured PR summary — what changed, why, impact (breaking changes, new deps, env vars), and review focus areas. Works as `@claude summarize` in PR comments.
+
 ## Quality Gates (Hooks)
 
 | Hook | When | What |
