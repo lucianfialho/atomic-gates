@@ -55,6 +55,9 @@ UX-focused review of UI changes — Nielsen's heuristics, accessibility (WCAG 2.
 ### `/pr-summary [pr_number]`
 Generate a structured PR summary — what changed, why, impact (breaking changes, new deps, env vars), and review focus areas. Works as `@claude summarize` in PR comments.
 
+### `/validate-issue [pr_number]`
+Validate that a PR addresses all requirements from its linked GitHub issue — met, missing, partial, and out-of-scope. Works as `@claude validate-issue` in PR comments.
+
 ## Quality Gates (Hooks)
 
 | Hook | When | What |

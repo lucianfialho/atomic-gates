@@ -55,4 +55,5 @@ Then:
 /check-security          — Security-focused review of current PR
 /ux-review               — UX-focused review of UI changes in current PR
 /pr-summary              — Generate structured PR summary
+/validate-issue          — Check if PR addresses all issue requirements
 ```
