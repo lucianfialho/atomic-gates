@@ -26,6 +26,19 @@ Solve a single GitHub issue end-to-end:
 ### `/batch-issues`
 Process multiple issues labeled "claude" in parallel using agent teams.
 
+### `/review-pr [specialist]`
+Run targeted code reviews on the current PR using specialist skills:
+
+```
+/review-pr frontend     — React/Next.js, components, a11y, performance
+/review-pr backend      — API design, security, DB patterns, error handling
+/review-pr security     — Security-focused checklist (OWASP, secrets, auth)
+/review-pr ux           — UX heuristics, accessibility, visual hierarchy
+/review-pr all          — Run all applicable specialists (default)
+```
+
+Works with `@claude` in GitHub PR comments for on-demand specialist reviews.
+
 ## Quality Gates (Hooks)
 
 | Hook | When | What |

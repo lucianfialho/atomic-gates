@@ -5,9 +5,10 @@ An autonomous development pipeline plugin for Claude Code.
 ## What it does
 
 1. **Issue Solver** (`/solve-issue`) — Picks a GitHub issue, implements it, runs tests, creates a PR
-2. **Code Review** — REVIEW.md rules for automated PR review
-3. **Quality Gates** — Hooks that enforce tests, lint, and build before stopping
-4. **Batch Issues** (`/batch-issues`) — Process multiple issues in parallel with agent teams
+2. **PR Review** (`/review-pr`) — Targeted specialist reviews: frontend, backend, security, UX, or all
+3. **Code Review** — REVIEW.md rules for automated PR review
+4. **Quality Gates** — Hooks that enforce tests, lint, and build before stopping
+5. **Batch Issues** (`/batch-issues`) — Process multiple issues in parallel with agent teams
 
 ## Architecture
 
@@ -39,4 +40,7 @@ Then:
 /solve-issue 42          — Solve issue #42
 /solve-issue             — Pick the next unassigned issue
 /batch-issues            — Process all open issues labeled "claude"
+/review-pr frontend      — Review current PR with frontend specialist
+/review-pr security      — Security-focused review
+/review-pr all           — Run all applicable specialists
 ```
