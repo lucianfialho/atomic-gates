@@ -39,8 +39,10 @@ flowchart TD
 
     GATE_B -->|Pass| SEC["6. Security Self-Review\nSecrets, injection, auth"]
     SEC --> VAL["7. Validate Coverage\nAll requirements met?"]
-    VAL --> PR["8. Create PR\nStructured summary +\nissue coverage report"]
-    PR --> DONE([PR Ready])
+    VAL --> PR["8. Create PR\nStructured summary +\n@claude review-pr all"]
+    PR --> GHA["9. GitHub Actions\nDetects @claude in PR body"]
+    GHA --> REVIEW["10. Automated Review\nSpecialists run in parallel\non GitHub Actions"]
+    REVIEW --> DONE([PR Reviewed])
 
     style CLASSIFY fill:#1a1a2e,stroke:#e94560,color:#fff
     style FE fill:#0f3460,stroke:#e94560,color:#fff
@@ -57,6 +59,8 @@ flowchart TD
     style SEC fill:#16213e,stroke:#e94560,color:#fff
     style VAL fill:#16213e,stroke:#e94560,color:#fff
     style PR fill:#1a1a2e,stroke:#00d2ff,color:#fff
+    style GHA fill:#533483,stroke:#00d2ff,color:#fff
+    style REVIEW fill:#533483,stroke:#00d2ff,color:#fff
     style START fill:#e94560,stroke:#e94560,color:#fff
     style DONE fill:#00d2ff,stroke:#00d2ff,color:#000
 ```
@@ -113,6 +117,30 @@ flowchart LR
 ```
 
 Specialists read `package.json` to identify project dependencies, then check `.claude/docs/` for cached documentation before fetching fresh docs via [context7](https://github.com/VedanthB/context7-cli). The cache is committed to the repo so the whole team benefits.
+
+### End-to-End Flow
+
+```mermaid
+sequenceDiagram
+    participant Dev as Developer (local)
+    participant CC as Claude Code (local)
+    participant GH as GitHub
+    participant GHA as GitHub Actions
+
+    Dev->>CC: /solve-issue 42
+    CC->>GH: gh issue view #42
+    CC->>CC: Classify domain → pick specialist
+    CC->>CC: Research libs (package.json + context7 cache)
+    CC->>CC: Implement with specialist expertise
+    CC->>CC: Write tests + quality gates
+    CC->>CC: Self-review (security + coverage)
+    CC->>GH: git push + gh pr create<br/>(body includes @claude review-pr all)
+    GH->>GHA: PR opened → triggers claude.yml
+    GHA->>GHA: Load dev-pipeline plugin
+    GHA->>GHA: Run batch-review with specialists
+    GHA->>GH: Post review comments + verdict
+    GH-->>Dev: PR ready with automated review
+```
 
 ## Install
 
@@ -206,6 +234,18 @@ Include `REVIEW.md` in your repo root for project-specific review rules. Works w
 # Run security check on current PR
 /dev-pipeline:check-security
 ```
+
+## GitHub Actions Integration
+
+The pipeline includes two GitHub Actions workflows:
+
+**`claude.yml`** — Runs when `@claude` is mentioned in issues, PR comments, or PR body. Loads the dev-pipeline plugin so specialists can run remotely.
+
+**`claude-code-review.yml`** — Runs automatic code review on every PR opened or updated.
+
+When `solve-issue` creates a PR, it includes `@claude review-pr all` in the body, which automatically triggers a full specialist review via GitHub Actions — no manual intervention needed.
+
+**Setup**: Add `CLAUDE_CODE_OAUTH_TOKEN` as a repository secret. Copy the workflow files from `.github/workflows/` to your repo.
 
 ## Configuration
 

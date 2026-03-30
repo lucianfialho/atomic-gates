@@ -193,9 +193,13 @@ Specialist: <which specialist role was used>
 
 ---
 🤖 Implemented by Claude Code dev-pipeline (<specialist> specialist)
+
+@claude review-pr all
 EOF
 )"
 ```
+
+The `@claude review-pr all` at the end of the PR body triggers the GitHub Actions workflow to automatically run a full specialist review on the PR.
 
 ## Rules
 - NEVER skip tests. If tests fail, fix them before creating the PR
