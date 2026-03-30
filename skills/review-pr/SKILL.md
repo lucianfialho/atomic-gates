@@ -15,10 +15,10 @@ Run targeted code reviews on the current PR using specialist skills.
 /review-pr backend      — API design, security, DB patterns, error handling
 /review-pr security     — Security-focused checklist (OWASP, secrets, auth)
 /review-pr ux           — UX heuristics, accessibility, visual hierarchy
-/review-pr all          — Run all applicable specialists sequentially
+/review-pr all          — Run all applicable specialists in parallel (same as /batch-review)
 ```
 
-If no argument is provided, defaults to `all`.
+If no argument is provided, defaults to `all` which runs specialists **in parallel** using subagents (delegates to `/batch-review`).
 
 ## Process
 
@@ -84,14 +84,14 @@ Improvements that would make the code better.
 
 ### 4. For `review all`
 
-Run specialists **sequentially** (not in parallel) to avoid noisy output:
+Delegate to the `/batch-review` skill, which runs specialists **in parallel** using subagents:
 
-1. First: security review (highest priority)
-2. Then: check changed files to decide which other specialists are relevant
-3. Run relevant specialists in order: backend → frontend → ux
-4. Combine all outputs under a single review comment
+1. Analyze the PR diff to categorize changed files
+2. Select applicable specialists based on file types
+3. Dispatch up to 3 subagents in parallel
+4. Produce a unified review with combined verdict table
 
-Skip specialists that have no relevant files in the diff (e.g., skip frontend if no .tsx/.css files changed).
+This is equivalent to running `/batch-review` directly.
 
 ## Rules
 

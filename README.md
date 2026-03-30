@@ -1,13 +1,66 @@
 # dev-pipeline
 
-An autonomous development pipeline plugin for Claude Code. Picks up GitHub issues, implements them, runs quality gates, and creates PRs.
+An autonomous development pipeline plugin for Claude Code. Classifies issues by domain, delegates to specialist agents, enforces quality gates, and delivers verified PRs.
+
+## How it works
+
+```mermaid
+flowchart TD
+    START(["/solve-issue 42"]) --> READ["1. Read Issue\ngh issue view #42"]
+    READ --> CLASSIFY{"2. Classify Domain"}
+
+    CLASSIFY -->|UI, components, styling| FE["🎨 frontend-dev\nServer Components, a11y,\nresponsive, states"]
+    CLASSIFY -->|API, database, auth| BE["⚙️ backend-dev\nValidation, queries,\nerror handling, security"]
+    CLASSIFY -->|Tests, coverage, QA| QA["🧪 qa-engineer\nHappy path, edge cases,\nintegration tests"]
+    CLASSIFY -->|UX + UI| UXFE["🧑‍🎨 ux-designer\n+ 🎨 frontend-dev"]
+    CLASSIFY -->|Full-stack| FULL["⚙️ backend-dev first\nthen 🎨 frontend-dev"]
+    CLASSIFY -->|Docs, config, CI| DIRECT["📝 Direct implementation"]
+
+    FE --> TESTS
+    BE --> TESTS
+    QA --> TESTS
+    UXFE --> TESTS
+    FULL --> TESTS
+    DIRECT --> TESTS
+
+    TESTS["3. Write Tests\nHappy path + edge cases"] --> QUALITY
+
+    QUALITY["4. Quality Gates"]
+    QUALITY --> T{"Tests pass?"}
+    T -->|No| FIX_T["Fix & retry"] --> T
+    T -->|Yes| L{"Lint pass?"}
+    L -->|No| FIX_L["Fix & retry"] --> L
+    L -->|Yes| B{"Build pass?"}
+    B -->|No| FIX_B["Fix & retry"] --> B
+
+    B -->|Yes| SELF["5. Self-Review"]
+
+    SELF --> SEC["🔒 Security check\nSecrets, injection,\nauth gaps"]
+    SEC --> VAL["✅ Validate coverage\nAll requirements met?"]
+
+    VAL --> PR["6. Create PR\nStructured summary +\nissue coverage report"]
+    PR --> DONE([PR Ready for Review])
+
+    style CLASSIFY fill:#1a1a2e,stroke:#e94560,color:#fff
+    style FE fill:#0f3460,stroke:#e94560,color:#fff
+    style BE fill:#0f3460,stroke:#e94560,color:#fff
+    style QA fill:#0f3460,stroke:#e94560,color:#fff
+    style UXFE fill:#0f3460,stroke:#e94560,color:#fff
+    style FULL fill:#0f3460,stroke:#e94560,color:#fff
+    style DIRECT fill:#0f3460,stroke:#e94560,color:#fff
+    style QUALITY fill:#16213e,stroke:#e94560,color:#fff
+    style SELF fill:#16213e,stroke:#e94560,color:#fff
+    style PR fill:#1a1a2e,stroke:#00d2ff,color:#fff
+    style START fill:#e94560,stroke:#e94560,color:#fff
+    style DONE fill:#00d2ff,stroke:#00d2ff,color:#000
+```
 
 ## Install
 
 Add the marketplace and install the plugin (inside Claude Code):
 ```
-/plugin marketplace add lucianfialho/claude-dev-pipeline
-/plugin install dev-pipeline
+claude plugin marketplace add lucianfialho/claude-dev-pipeline
+claude plugin install dev-pipeline
 ```
 
 Or load directly from a local directory:
@@ -17,49 +70,38 @@ claude --plugin-dir /path/to/claude-dev-pipeline
 
 ## Skills
 
-### `/solve-issue [number]`
-Solve a single GitHub issue end-to-end:
-1. Reads the issue
-2. Creates a branch
-3. Implements the solution
-4. Runs tests, lint, build
-5. Creates a PR that closes the issue
+### Issue Solving
 
-### `/batch-issues`
-Process multiple issues labeled "claude" in parallel using agent teams.
+| Skill | Description |
+|-------|-------------|
+| `/solve-issue [number]` | Classify issue domain, delegate to specialist, implement, verify, and create PR |
+| `/batch-issues` | Process multiple issues labeled "claude" in parallel using agent teams |
 
-### `/review-pr [specialist]`
-Run targeted code reviews on the current PR using specialist skills:
+### PR Review
 
-```
-/review-pr frontend     — React/Next.js, components, a11y, performance
-/review-pr backend      — API design, security, DB patterns, error handling
-/review-pr security     — Security-focused checklist (OWASP, secrets, auth)
-/review-pr ux           — UX heuristics, accessibility, visual hierarchy
-/review-pr all          — Run all applicable specialists (default)
-```
+| Skill | Description |
+|-------|-------------|
+| `/review-pr [specialist]` | Targeted review: `frontend`, `backend`, `security`, `ux`, or `all` (parallel) |
+| `/batch-review [pr_number]` | Run all applicable specialists in parallel with unified verdict |
+| `/check-security [pr_number]` | OWASP Top 10, secrets, auth gaps, dependency audit |
+| `/suggest-tests [pr_number]` | Missing tests, edge cases, regression risks with skeleton code |
+| `/ux-review [pr_number]` | Nielsen's heuristics, WCAG 2.1 AA, interaction design |
+| `/pr-summary [pr_number]` | Structured summary: changes, impact, review focus areas |
+| `/validate-issue [pr_number]` | Verify PR covers all requirements from linked issue |
 
-Works with `@claude` in GitHub PR comments for on-demand specialist reviews.
+All review skills work as `@claude <command>` in GitHub PR comments.
 
-### `/suggest-tests [pr_number]`
-Analyze a PR diff and suggest missing tests — edge cases, integration gaps, and regression risks. Provides skeleton test code using the project's framework.
+### Specialists
 
-Works as `@claude suggest tests` in GitHub PR comments.
+These specialists are used by `solve-issue` for implementation and by review skills for analysis:
 
-### `/check-security [pr_number]`
-Security-focused review covering OWASP Top 10, hardcoded secrets, auth gaps, and dependency vulnerabilities. Works as `@claude check security` in PR comments.
-
-### `/ux-review [pr_number]`
-UX-focused review of UI changes — Nielsen's heuristics, accessibility (WCAG 2.1 AA), interaction design, and missing states. Works as `@claude ux-review` in PR comments.
-
-### `/pr-summary [pr_number]`
-Generate a structured PR summary — what changed, why, impact (breaking changes, new deps, env vars), and review focus areas. Works as `@claude summarize` in PR comments.
-
-### `/validate-issue [pr_number]`
-Validate that a PR addresses all requirements from its linked GitHub issue — met, missing, partial, and out-of-scope. Works as `@claude validate-issue` in PR comments.
-
-### `/batch-review [pr_number]`
-Run all applicable specialist reviews on a PR in parallel using subagents. Produces a unified report with per-specialist findings and a combined verdict. Automatically selects specialists based on changed file types.
+| Specialist | Domain | Used when |
+|------------|--------|-----------|
+| `frontend-dev` | React/Next.js, components, a11y, responsive | Issue involves UI, pages, styling |
+| `backend-dev` | APIs, database, auth, server logic | Issue involves endpoints, data, security |
+| `qa-engineer` | Tests, edge cases, coverage | Issue involves testing or coverage gaps |
+| `ux-designer` | UX heuristics, accessibility, interaction | Issue involves UX improvements |
+| `code-reviewer` | Bugs, security, performance, quality | Always included in reviews |
 
 ## Quality Gates (Hooks)
 
@@ -69,28 +111,48 @@ Run all applicable specialist reviews on a PR in parallel using subagents. Produ
 | **PostToolUse** (Write/Edit) | After file edits | Async lint check — reports issues |
 | **TaskCompleted** | Before task closes | Runs build — blocks if build breaks |
 
-## Code Review
+## Review Rules
 
-Include `REVIEW.md` in your repo root (or copy ours) for automated PR review guidelines. Works with Claude Code Review.
+Domain-specific review rules are loaded based on changed file types:
+
+| Rule Set | Triggers on | Focus |
+|----------|------------|-------|
+| `base.md` | Always | Secrets, error handling, single responsibility, code style |
+| `frontend.md` | `.tsx`, `.jsx`, `.css` | Server Components, a11y, performance, design system |
+| `backend.md` | `route.ts`, `actions.ts`, `api/` | Status codes, validation, queries, auth |
+| `security.md` | Security reviews | Injection, secrets, auth, CSRF, CORS |
+| `database.md` | `migration*`, `schema*`, `.prisma` | Migrations, N+1, transactions, indexes |
+| `performance.md` | Performance reviews | Rendering, fetching, caching, assets |
+
+Include `REVIEW.md` in your repo root for project-specific review rules. Works with Claude Code Review.
 
 ## Usage
 
 ```bash
 # After installing, use the skills inside Claude Code:
 
-# Solve a specific issue
-/dev-pipeline:solve-issue 1
+# Solve a specific issue (classifies domain, picks specialist)
+/dev-pipeline:solve-issue 42
 
 # Or let Claude pick from labeled issues
 /dev-pipeline:solve-issue
 
-# Process all "claude" labeled issues
+# Process all "claude" labeled issues in parallel
 /dev-pipeline:batch-issues
+
+# Review a PR with all specialists in parallel
+/dev-pipeline:review-pr all
+
+# Review with a specific specialist
+/dev-pipeline:review-pr security
+
+# Run security check on current PR
+/dev-pipeline:check-security
 ```
 
 ## Configuration
 
-Create a `pipeline.config.json` in your repo root (or `.claude/`) to customize behavior:
+Create a `pipeline.config.json` in your repo root to customize behavior:
 
 ```json
 {
@@ -125,9 +187,7 @@ Create a `pipeline.config.json` in your repo root (or `.claude/`) to customize b
 }
 ```
 
-All fields are optional — defaults are used for anything not specified. The `$schema` field enables autocompletion in VS Code and other editors.
-
-### Configuration Reference
+All fields are optional — defaults are used for anything not specified.
 
 | Section | Key | Default | Description |
 |---------|-----|---------|-------------|
@@ -143,9 +203,3 @@ All fields are optional — defaults are used for anything not specified. The `$
 | `review` | `securityCheck` | `true` | Include security checklist |
 | `review` | `performanceCheck` | `true` | Include performance checklist |
 | `review` | `maxFileReviewSize` | `500` | Max lines per file to review |
-
-## Other Customization
-
-- Edit `REVIEW.md` for project-specific review rules
-- Adjust hook timeouts in `hooks/hooks.json`
-- Scripts auto-detect npm/pytest — add more in `scripts/`
