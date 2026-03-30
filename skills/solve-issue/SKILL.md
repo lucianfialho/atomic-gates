@@ -57,6 +57,51 @@ git checkout -b <branchPrefix>/<issue-number>-<short-description>
 - Check CLAUDE.md for project-specific rules
 - Identify the test framework and conventions in use
 
+### 4b. Gather library documentation
+
+Before implementing, ensure you have up-to-date docs for the libraries you'll use. The pipeline maintains a local docs cache in `.claude/docs/` that is committed to the repo.
+
+**Process:**
+
+1. Read `package.json` (or `pyproject.toml` / `requirements.txt` for Python) to identify dependencies
+2. Based on the classified domain and the issue, pick the 2-3 most relevant libraries
+3. For each library, check if docs exist locally:
+
+```bash
+# Check if cached docs exist and are recent (< 30 days old)
+ls -la .claude/docs/<library-name>.md
+```
+
+4. **If cached docs exist and are less than 30 days old**: read them directly
+5. **If no cache or stale (> 30 days)**: fetch fresh docs and save to cache:
+
+```bash
+mkdir -p .claude/docs
+npx @vedanth/context7 docs <library> "<topic relevant to the issue>" --tokens 8000 > .claude/docs/<library-name>.md
+```
+
+**Which libs to fetch by specialist:**
+
+| Specialist | Typical libs to check |
+|------------|----------------------|
+| frontend-dev | react, next.js, tailwindcss, the UI library in use (shadcn, radix, etc.) |
+| backend-dev | next.js (API routes/server actions), the ORM in use (prisma, drizzle), auth library |
+| qa-engineer | the test framework (vitest, jest, playwright, cypress) |
+| ux-designer | the UI component library, accessibility guidelines |
+
+**Naming convention for cache files:**
+- `nextjs.md`, `react.md`, `prisma.md`, `vitest.md`, `tailwindcss.md`
+- For topic-specific docs: `nextjs-server-actions.md`, `prisma-migrations.md`
+
+**Rules:**
+- Always check the cache first — don't re-fetch what's already there
+- Only fetch docs for libs that are actually in the project's dependencies
+- Pick topics directly relevant to the issue — don't fetch generic docs
+- Max 3 fetches per issue to keep context focused
+- Use `--tokens 8000` for a good balance of depth and size
+- Skip this step for trivial changes (typos, config, docs-only)
+- Don't commit docs cache in the issue PR — it's infrastructure, not feature code
+
 ### 5. Implement with the specialist
 
 Adopt the role and expertise of the classified specialist(s). This means:

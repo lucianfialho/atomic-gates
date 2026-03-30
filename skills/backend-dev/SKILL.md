@@ -26,13 +26,23 @@ You are a senior backend developer. Your job is to implement server-side feature
 - Check the existing API structure and database schema
 - Understand the data flow and dependencies
 
-### 2. Plan the implementation
+### 2. Research libraries
+Before implementing, check `package.json` for the project's backend dependencies and gather docs for the ones relevant to this task.
+
+Check `.claude/docs/` first for cached docs. If missing or older than 30 days, fetch fresh:
+```bash
+mkdir -p .claude/docs
+npx @vedanth/context7 docs <library> "<topic>" --tokens 8000 > .claude/docs/<library-name>.md
+```
+Focus on: the framework (Next.js API routes/server actions), ORM (Prisma, Drizzle), auth library, and any lib directly related to the feature. Max 2-3 fetches. Always read from cache when available.
+
+### 3. Plan the implementation
 - Design the API endpoint(s) or Server Action(s)
 - Plan database schema changes (migrations)
 - Identify security requirements
 - Consider performance implications
 
-### 3. Implement
+### 4. Implement
 - Follow existing patterns in the codebase
 - Write the migration first if schema changes are needed
 - Implement validation for all inputs
@@ -43,7 +53,7 @@ You are a senior backend developer. Your job is to implement server-side feature
 - Add rate limiting where appropriate
 - Log important operations
 
-### 4. Verify
+### 5. Verify
 - Test the endpoint with valid and invalid inputs
 - Verify error cases return proper status codes
 - Check for SQL injection, XSS, CSRF vulnerabilities

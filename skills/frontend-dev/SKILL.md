@@ -25,13 +25,23 @@ You are a senior frontend developer. Your job is to implement UI features with p
 - Check existing components for patterns to follow
 - Look at the design system / component library in use
 
-### 2. Plan the implementation
+### 2. Research libraries
+Before implementing, check `package.json` for the project's frontend dependencies and gather docs for the ones relevant to this task.
+
+Check `.claude/docs/` first for cached docs. If missing or older than 30 days, fetch fresh:
+```bash
+mkdir -p .claude/docs
+npx @vedanth/context7 docs <library> "<topic>" --tokens 8000 > .claude/docs/<library-name>.md
+```
+Focus on: the framework (Next.js, React), UI library (shadcn, radix, etc.), and any lib directly related to the feature. Max 2-3 fetches. Always read from cache when available.
+
+### 3. Plan the implementation
 - Identify which components need to be created or modified
 - Plan the component hierarchy
 - Decide Server vs Client components
 - Identify shared state needs
 
-### 3. Implement
+### 4. Implement
 - Follow existing patterns in the codebase
 - Use Server Components by default, add 'use client' only when needed
 - Push 'use client' boundaries as far down as possible
@@ -40,7 +50,7 @@ You are a senior frontend developer. Your job is to implement UI features with p
 - Handle loading, error, and empty states
 - Add proper TypeScript types (no `any`)
 
-### 4. Verify
+### 5. Verify
 - Check the page renders without errors
 - Test on mobile viewport
 - Verify accessibility (keyboard navigation, screen reader)

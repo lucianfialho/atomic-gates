@@ -1,45 +1,46 @@
 # dev-pipeline
 
-An autonomous development pipeline plugin for Claude Code. Classifies issues by domain, delegates to specialist agents, enforces quality gates, and delivers verified PRs.
+An autonomous development pipeline plugin for Claude Code. Classifies issues by domain, delegates to specialist agents, gathers up-to-date library docs, enforces quality gates, and delivers verified PRs.
 
 ## How it works
+
+### Solve Issue Pipeline
 
 ```mermaid
 flowchart TD
     START(["/solve-issue 42"]) --> READ["1. Read Issue\ngh issue view #42"]
     READ --> CLASSIFY{"2. Classify Domain"}
 
-    CLASSIFY -->|UI, components, styling| FE["🎨 frontend-dev\nServer Components, a11y,\nresponsive, states"]
-    CLASSIFY -->|API, database, auth| BE["⚙️ backend-dev\nValidation, queries,\nerror handling, security"]
-    CLASSIFY -->|Tests, coverage, QA| QA["🧪 qa-engineer\nHappy path, edge cases,\nintegration tests"]
+    CLASSIFY -->|UI, components, styling| FE["🎨 frontend-dev"]
+    CLASSIFY -->|API, database, auth| BE["⚙️ backend-dev"]
+    CLASSIFY -->|Tests, coverage, QA| QA["🧪 qa-engineer"]
     CLASSIFY -->|UX + UI| UXFE["🧑‍🎨 ux-designer\n+ 🎨 frontend-dev"]
-    CLASSIFY -->|Full-stack| FULL["⚙️ backend-dev first\nthen 🎨 frontend-dev"]
-    CLASSIFY -->|Docs, config, CI| DIRECT["📝 Direct implementation"]
+    CLASSIFY -->|Full-stack| FULL["⚙️ backend-dev\nthen 🎨 frontend-dev"]
+    CLASSIFY -->|Docs, config, CI| DIRECT["📝 Direct"]
 
-    FE --> TESTS
-    BE --> TESTS
-    QA --> TESTS
-    UXFE --> TESTS
-    FULL --> TESTS
-    DIRECT --> TESTS
+    FE --> RESEARCH
+    BE --> RESEARCH
+    QA --> RESEARCH
+    UXFE --> RESEARCH
+    FULL --> RESEARCH
+    DIRECT --> IMPLEMENT
 
-    TESTS["3. Write Tests\nHappy path + edge cases"] --> QUALITY
+    RESEARCH["3. Research\nRead package.json\nCheck .claude/docs/ cache\nFetch via context7 if stale"]
 
-    QUALITY["4. Quality Gates"]
-    QUALITY --> T{"Tests pass?"}
-    T -->|No| FIX_T["Fix & retry"] --> T
-    T -->|Yes| L{"Lint pass?"}
-    L -->|No| FIX_L["Fix & retry"] --> L
-    L -->|Yes| B{"Build pass?"}
-    B -->|No| FIX_B["Fix & retry"] --> B
+    RESEARCH --> IMPLEMENT["4. Implement\nWith specialist expertise"]
+    IMPLEMENT --> TESTS["5. Write Tests\nHappy path + edge cases"]
 
-    B -->|Yes| SELF["5. Self-Review"]
+    TESTS --> GATE_T{"Tests?"}
+    GATE_T -->|Fail| FIX_T["Fix"] --> GATE_T
+    GATE_T -->|Pass| GATE_L{"Lint?"}
+    GATE_L -->|Fail| FIX_L["Fix"] --> GATE_L
+    GATE_L -->|Pass| GATE_B{"Build?"}
+    GATE_B -->|Fail| FIX_B["Fix"] --> GATE_B
 
-    SELF --> SEC["🔒 Security check\nSecrets, injection,\nauth gaps"]
-    SEC --> VAL["✅ Validate coverage\nAll requirements met?"]
-
-    VAL --> PR["6. Create PR\nStructured summary +\nissue coverage report"]
-    PR --> DONE([PR Ready for Review])
+    GATE_B -->|Pass| SEC["6. Security Self-Review\nSecrets, injection, auth"]
+    SEC --> VAL["7. Validate Coverage\nAll requirements met?"]
+    VAL --> PR["8. Create PR\nStructured summary +\nissue coverage report"]
+    PR --> DONE([PR Ready])
 
     style CLASSIFY fill:#1a1a2e,stroke:#e94560,color:#fff
     style FE fill:#0f3460,stroke:#e94560,color:#fff
@@ -48,12 +49,70 @@ flowchart TD
     style UXFE fill:#0f3460,stroke:#e94560,color:#fff
     style FULL fill:#0f3460,stroke:#e94560,color:#fff
     style DIRECT fill:#0f3460,stroke:#e94560,color:#fff
-    style QUALITY fill:#16213e,stroke:#e94560,color:#fff
-    style SELF fill:#16213e,stroke:#e94560,color:#fff
+    style RESEARCH fill:#533483,stroke:#e94560,color:#fff
+    style IMPLEMENT fill:#0f3460,stroke:#e94560,color:#fff
+    style GATE_T fill:#16213e,stroke:#e94560,color:#fff
+    style GATE_L fill:#16213e,stroke:#e94560,color:#fff
+    style GATE_B fill:#16213e,stroke:#e94560,color:#fff
+    style SEC fill:#16213e,stroke:#e94560,color:#fff
+    style VAL fill:#16213e,stroke:#e94560,color:#fff
     style PR fill:#1a1a2e,stroke:#00d2ff,color:#fff
     style START fill:#e94560,stroke:#e94560,color:#fff
     style DONE fill:#00d2ff,stroke:#00d2ff,color:#000
 ```
+
+### PR Review Pipeline
+
+```mermaid
+flowchart LR
+    START(["/review-pr all"]) --> DIFF["Get PR diff\nCategorize files"]
+
+    DIFF --> DISPATCH{"Dispatch\nby file type"}
+
+    DISPATCH --> S1["🔒 code-reviewer\nSecurity"]
+    DISPATCH --> S2["⚙️ backend-dev\nAPI, DB, auth"]
+    DISPATCH --> S3["🎨 frontend-dev\nComponents, a11y"]
+    DISPATCH --> S4["🧑‍🎨 ux-designer\nHeuristics, states"]
+
+    S1 --> MERGE["Unified Report\nCombined verdict table"]
+    S2 --> MERGE
+    S3 --> MERGE
+    S4 --> MERGE
+
+    MERGE --> VERDICT{{"APPROVE | REQUEST_CHANGES"}}
+
+    style DISPATCH fill:#1a1a2e,stroke:#e94560,color:#fff
+    style S1 fill:#0f3460,stroke:#e94560,color:#fff
+    style S2 fill:#0f3460,stroke:#e94560,color:#fff
+    style S3 fill:#0f3460,stroke:#e94560,color:#fff
+    style S4 fill:#0f3460,stroke:#e94560,color:#fff
+    style MERGE fill:#16213e,stroke:#00d2ff,color:#fff
+    style START fill:#e94560,stroke:#e94560,color:#fff
+    style VERDICT fill:#00d2ff,stroke:#00d2ff,color:#000
+```
+
+### Docs Knowledge Base
+
+```mermaid
+flowchart LR
+    NEED["Specialist needs\nlibrary docs"] --> CHECK{".claude/docs/\ncache exists?"}
+
+    CHECK -->|"Yes, < 30 days"| READ["Read from cache"]
+    CHECK -->|"No or stale"| FETCH["npx @vedanth/context7\ndocs lib topic"]
+
+    FETCH --> SAVE["Save to\n.claude/docs/lib.md"]
+    SAVE --> READ
+
+    READ --> USE["Use in\nimplementation"]
+
+    style CHECK fill:#1a1a2e,stroke:#e94560,color:#fff
+    style FETCH fill:#533483,stroke:#e94560,color:#fff
+    style SAVE fill:#533483,stroke:#e94560,color:#fff
+    style READ fill:#0f3460,stroke:#00d2ff,color:#fff
+    style USE fill:#0f3460,stroke:#00d2ff,color:#fff
+```
+
+Specialists read `package.json` to identify project dependencies, then check `.claude/docs/` for cached documentation before fetching fresh docs via [context7](https://github.com/VedanthB/context7-cli). The cache is committed to the repo so the whole team benefits.
 
 ## Install
 
@@ -74,7 +133,7 @@ claude --plugin-dir /path/to/claude-dev-pipeline
 
 | Skill | Description |
 |-------|-------------|
-| `/solve-issue [number]` | Classify issue domain, delegate to specialist, implement, verify, and create PR |
+| `/solve-issue [number]` | Classify domain, research libs, delegate to specialist, implement, verify, and create PR |
 | `/batch-issues` | Process multiple issues labeled "claude" in parallel using agent teams |
 
 ### PR Review
@@ -93,14 +152,14 @@ All review skills work as `@claude <command>` in GitHub PR comments.
 
 ### Specialists
 
-These specialists are used by `solve-issue` for implementation and by review skills for analysis:
+These specialists are used by `solve-issue` for implementation and by review skills for analysis. Each researches up-to-date library docs before working.
 
-| Specialist | Domain | Used when |
-|------------|--------|-----------|
-| `frontend-dev` | React/Next.js, components, a11y, responsive | Issue involves UI, pages, styling |
-| `backend-dev` | APIs, database, auth, server logic | Issue involves endpoints, data, security |
-| `qa-engineer` | Tests, edge cases, coverage | Issue involves testing or coverage gaps |
-| `ux-designer` | UX heuristics, accessibility, interaction | Issue involves UX improvements |
+| Specialist | Domain | Researches |
+|------------|--------|------------|
+| `frontend-dev` | React/Next.js, components, a11y, responsive | Framework, UI library, CSS tooling |
+| `backend-dev` | APIs, database, auth, server logic | Framework, ORM, auth library |
+| `qa-engineer` | Tests, edge cases, coverage | Test runner, mocking, assertion APIs |
+| `ux-designer` | UX heuristics, accessibility, interaction | UI component library, a11y guidelines |
 | `code-reviewer` | Bugs, security, performance, quality | Always included in reviews |
 
 ## Quality Gates (Hooks)
@@ -129,9 +188,7 @@ Include `REVIEW.md` in your repo root for project-specific review rules. Works w
 ## Usage
 
 ```bash
-# After installing, use the skills inside Claude Code:
-
-# Solve a specific issue (classifies domain, picks specialist)
+# Solve a specific issue (classifies domain, researches libs, picks specialist)
 /dev-pipeline:solve-issue 42
 
 # Or let Claude pick from labeled issues
