@@ -17,6 +17,19 @@ fi
 if [ -f "package.json" ]; then
   HAS_TEST=$(jq -r '.scripts.test // empty' package.json 2>/dev/null)
   if [ -n "$HAS_TEST" ]; then
+    # Skip if "test" is actually a build command (check-build.sh handles that)
+    # This avoids lock conflicts when both hooks run next build simultaneously
+    case "$HAS_TEST" in
+      *"next build"*|*"npm run build"*|*"yarn build"*|*"pnpm build"*|*"turbo build"*)
+        exit 0
+        ;;
+    esac
+    # Skip placeholder test scripts that aren't real tests
+    case "$HAS_TEST" in
+      *"no test specified"*|*"echo"*|"exit 0"|"exit 1"|"true"|"false")
+        exit 0
+        ;;
+    esac
     OUTPUT=$(npm test 2>&1)
     EXIT_CODE=$?
     if [ $EXIT_CODE -ne 0 ]; then
