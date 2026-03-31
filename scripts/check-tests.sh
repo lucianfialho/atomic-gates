@@ -5,39 +5,40 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/load-config.sh"
 
+# Read hook input from stdin
 INPUT=$(cat)
-STOP_HOOK_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // false')
-
-# Don't loop — if we already ran this check, allow stop
-if [ "$STOP_HOOK_ACTIVE" = "true" ]; then
-  exit 0
-fi
 
 # Check if tests are required by config
 if [ "$(pipeline_require_tests)" != "true" ]; then
   exit 0
 fi
 
-# Detect test command
+# Detect and run test command
 if [ -f "package.json" ]; then
-  HAS_TEST=$(jq -r '.scripts.test // empty' package.json)
+  HAS_TEST=$(jq -r '.scripts.test // empty' package.json 2>/dev/null)
   if [ -n "$HAS_TEST" ]; then
-    echo "Running tests..." >&2
-    if ! npm test 2>&1; then
+    OUTPUT=$(npm test 2>&1)
+    EXIT_CODE=$?
+    if [ $EXIT_CODE -ne 0 ]; then
       echo "Tests are failing. Fix them before stopping." >&2
+      echo "$OUTPUT" >&2
       exit 2
     fi
+    exit 0
   fi
 fi
 
 # Python
 if [ -f "pytest.ini" ] || [ -f "pyproject.toml" ]; then
   if command -v pytest &> /dev/null; then
-    echo "Running pytest..." >&2
-    if ! pytest 2>&1; then
+    OUTPUT=$(pytest 2>&1)
+    EXIT_CODE=$?
+    if [ $EXIT_CODE -ne 0 ]; then
       echo "Tests are failing. Fix them before stopping." >&2
+      echo "$OUTPUT" >&2
       exit 2
     fi
+    exit 0
   fi
 fi
 
