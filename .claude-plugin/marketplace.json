@@ -13,7 +13,7 @@
       "name": "dev-pipeline",
       "source": "./",
       "description": "End-to-end autonomous development pipeline: issues → code → PR → review with quality gates and specialist skills.",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "author": { "name": "Lucian Fialho" },
       "category": "productivity",
       "tags": ["github", "issues", "code-review", "ci-cd", "automation"]
