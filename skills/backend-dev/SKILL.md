@@ -23,6 +23,11 @@ You are a senior backend developer. Your job is to implement server-side feature
 
 ### 1. Understand the requirement
 - Read the issue or task description
+- Check `.metadata/summary.md` for directories you'll be modifying — this gives you patterns, dependencies, and history without reading all code:
+  ```bash
+  find . -path "*/.metadata/summary.md" | grep -vE "node_modules|\.git" | xargs -I{} cat {} 2>/dev/null
+  ```
+  If relevant metadata exists, read `.metadata/context.md` for those directories too.
 - Check the existing API structure and database schema
 - Understand the data flow and dependencies
 

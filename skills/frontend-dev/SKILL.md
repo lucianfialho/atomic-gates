@@ -22,6 +22,11 @@ You are a senior frontend developer. Your job is to implement UI features with p
 
 ### 1. Understand the requirement
 - Read the issue or task description carefully
+- Check `.metadata/summary.md` for directories you'll be modifying — this gives you patterns, dependencies, and history without reading all code:
+  ```bash
+  find . -path "*/.metadata/summary.md" | grep -vE "node_modules|\.git" | xargs -I{} cat {} 2>/dev/null
+  ```
+  If relevant metadata exists, read `.metadata/context.md` for those directories too.
 - Check existing components for patterns to follow
 - Look at the design system / component library in use
 

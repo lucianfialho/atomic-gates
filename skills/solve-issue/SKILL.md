@@ -52,9 +52,20 @@ git checkout -b <branchPrefix>/<issue-number>-<short-description>
 ```
 
 ### 4. Research the codebase
+
+First, check for existing `.metadata/` context on relevant directories — this can save significant time vs reading raw code:
+
+```bash
+# Find metadata for directories likely involved in the issue
+find . -path "*/.metadata/summary.md" | grep -vE "node_modules|\.git" | xargs -I{} cat {} 2>/dev/null
+```
+
+If summaries exist for the directories you'll be modifying, read `.metadata/context.md` for those directories first — it captures patterns, dependencies, and caveats from prior work. Only read the full source files if you need more detail than the metadata provides.
+
+Then:
 - Read relevant files to understand the current implementation
 - Find related tests and existing patterns
-- Check CLAUDE.md for project-specific rules
+- Check CLAUDE.md (including the Component Registry) for project-specific rules
 - Identify the test framework and conventions in use
 
 ### 4b. Gather library documentation
@@ -154,7 +165,70 @@ Before committing, verify your implementation covers the issue:
 - If something is out of scope, note it in the PR description
 - If something is unclear, note it as a question in the PR description
 
-### 10. Commit and push
+### 10. Write metadata for changed files
+
+Before committing, update the `.metadata/` context for every directory you modified. This keeps the codebase's institutional memory current.
+
+For each directory containing files you created or changed:
+
+```bash
+mkdir -p <directory>/.metadata
+```
+
+Write three files:
+
+**`.metadata/context.md`** — what the module does, key dependencies, patterns used:
+```markdown
+# <ModuleName> — Context
+
+**Type**: <React Component | API Route | Hook | Utility | etc.>
+**Specialist**: <your role>
+**Last updated**: <YYYY-MM-DD>
+
+## Purpose
+<2-3 sentences: what this module does and which feature it supports>
+
+## Key dependencies
+- `<dep>` — <why it's used>
+
+## Patterns
+<Non-obvious conventions or architectural decisions>
+
+## Notes
+<Caveats, known issues, things to watch out for>
+```
+
+**`.metadata/prompt.md`** — why this code exists (link back to the issue):
+```markdown
+# <ModuleName> — Origin
+
+**Issue**: #<number> — <issue title>
+**Specialist**: <your role>
+**Date**: <YYYY-MM-DD>
+
+## Request
+<Key requirements from the issue>
+
+## Key decisions
+- <Why this approach was chosen>
+```
+
+**`.metadata/summary.md`** — one line, optimized for fast loading by future specialists:
+```
+<ModuleName> (<type>, <specialist>, <date>) — <one-sentence description>. Deps: <dep1>, <dep2>.
+```
+
+After writing all metadata, refresh the Component Registry in `CLAUDE.md`:
+
+```bash
+# Find all summary files and build the registry table
+find . -path "*/.metadata/summary.md" | grep -vE "node_modules|\.git" | sort | xargs -I{} sh -c 'dir=$(dirname $(dirname {})); echo "| [\`$dir/\`]($dir/) | $(cat {}) |"'
+```
+
+Replace the content between `<!-- context-sync: auto-generated -->` and `<!-- /context-sync -->` markers in `CLAUDE.md` with the updated table. If the markers don't exist yet, append the Component Registry section at the end.
+
+### 11. Commit and push
+- Include the `.metadata/` files in the commit alongside the code changes
 - Write a clear commit message referencing the issue
 - Push the branch
 

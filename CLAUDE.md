@@ -9,6 +9,7 @@ An autonomous development pipeline plugin for Claude Code.
 3. **Code Review** — REVIEW.md + domain-specific rules for automated PR review
 4. **Quality Gates** — Hooks that enforce tests, lint, and build before stopping
 5. **Batch Issues** (`/batch-issues`) — Process multiple issues in parallel with agent teams
+6. **Context Sync** (`/context-sync`) — Builds `.metadata/` knowledge base per directory and keeps the Component Registry below up-to-date
 
 ## Architecture
 
@@ -53,6 +54,11 @@ scripts/
   check-tests.sh          — Verify tests pass before stopping
   check-lint.sh           — Run linter after file edits
   check-build.sh          — Verify build succeeds
+
+.metadata/ (per source directory, committed to repo)
+  context.md              — What the module does, key dependencies, patterns
+  prompt.md               — Origin issue and key implementation decisions
+  summary.md              — One-line description for fast context loading
 ```
 
 ## Usage
@@ -77,4 +83,12 @@ Then:
 /pr-summary              — Generate structured PR summary
 /validate-issue          — Check if PR addresses all issue requirements
 /batch-review            — Run all applicable specialists on a PR in parallel
+/context-sync            — Update .metadata/ for changed files (default: diff mode)
+/context-sync full       — Rebuild .metadata/ for all source directories
 ```
+
+## Component Registry
+<!-- context-sync: auto-generated — do not edit manually -->
+| Module | Summary | Specialist | Updated |
+|--------|---------|-----------|---------|
+<!-- /context-sync -->

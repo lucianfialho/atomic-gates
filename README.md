@@ -37,9 +37,10 @@ flowchart TD
     GATE_L -->|Pass| GATE_B{"Build?"}
     GATE_B -->|Fail| FIX_B["Fix"] --> GATE_B
 
-    GATE_B -->|Pass| SEC["6. Security Self-Review\nSecrets, injection, auth"]
-    SEC --> VAL["7. Validate Coverage\nAll requirements met?"]
-    VAL --> PR["8. Create PR\nStructured summary +\n@claude review-pr all"]
+    GATE_B -->|Pass| META["6. Write .metadata/\ncontext + prompt + summary\nUpdate CLAUDE.md registry"]
+    META --> SEC["7. Security Self-Review\nSecrets, injection, auth"]
+    SEC --> VAL["8. Validate Coverage\nAll requirements met?"]
+    VAL --> PR["9. Create PR\nStructured summary +\n@claude review-pr all"]
     PR --> GHA["9. GitHub Actions\nDetects @claude in PR body"]
     GHA --> REVIEW["10. Automated Review\nSpecialists run in parallel\non GitHub Actions"]
     REVIEW --> DONE([PR Reviewed])
@@ -57,6 +58,7 @@ flowchart TD
     style GATE_L fill:#16213e,stroke:#e94560,color:#fff
     style GATE_B fill:#16213e,stroke:#e94560,color:#fff
     style SEC fill:#16213e,stroke:#e94560,color:#fff
+    style META fill:#533483,stroke:#00d2ff,color:#fff
     style VAL fill:#16213e,stroke:#e94560,color:#fff
     style PR fill:#1a1a2e,stroke:#00d2ff,color:#fff
     style GHA fill:#533483,stroke:#00d2ff,color:#fff
@@ -118,6 +120,47 @@ flowchart LR
 
 Specialists read `package.json` to identify project dependencies, then check `.claude/docs/` for cached documentation before fetching fresh docs via [context7](https://github.com/VedanthB/context7-cli). The cache is committed to the repo so the whole team benefits.
 
+### Context Management
+
+```mermaid
+flowchart LR
+    SPECIALIST["Specialist starts\nworking on files"] --> CHECK{".metadata/\nexists?"}
+
+    CHECK -->|"Yes"| READ_META["Read\n.metadata/context.md\n+ summary.md"]
+    CHECK -->|"No"| READ_CODE["Read full\nsource files"]
+
+    READ_META --> IMPLEMENT["Implement\nwith context"]
+    READ_CODE --> IMPLEMENT
+
+    IMPLEMENT --> WRITE_META["Write .metadata/\ncontext.md\nprompt.md\nsummary.md"]
+
+    WRITE_META --> REGISTRY["Update\nCLAUDE.md\nComponent Registry"]
+
+    REGISTRY --> COMMIT["Commit metadata\nalongside code"]
+
+    style CHECK fill:#1a1a2e,stroke:#e94560,color:#fff
+    style READ_META fill:#0f3460,stroke:#00d2ff,color:#fff
+    style READ_CODE fill:#0f3460,stroke:#e94560,color:#fff
+    style WRITE_META fill:#533483,stroke:#e94560,color:#fff
+    style REGISTRY fill:#533483,stroke:#00d2ff,color:#fff
+    style COMMIT fill:#16213e,stroke:#00d2ff,color:#fff
+```
+
+Each source directory gets a `.metadata/` folder committed alongside the code:
+
+```
+src/components/NavBar/
+  index.tsx
+  .metadata/
+    context.md   — what it does, key dependencies, patterns, caveats
+    prompt.md    — origin issue, specialist used, key decisions
+    summary.md   — one line for fast loading by future specialists
+```
+
+The `CLAUDE.md` file maintains a **Component Registry** table (auto-updated by `/context-sync`) listing all modules with their one-line summaries, so any session can quickly orient itself without reading source files.
+
+Run `/context-sync` manually after batch work, or let `solve-issue` update metadata automatically as part of every PR.
+
 ### End-to-End Flow
 
 ```mermaid
@@ -133,8 +176,10 @@ sequenceDiagram
     CC->>CC: Research libs (package.json + context7 cache)
     CC->>CC: Implement with specialist expertise
     CC->>CC: Write tests + quality gates
+    CC->>CC: Write .metadata/ for changed files
+    CC->>CC: Update CLAUDE.md Component Registry
     CC->>CC: Self-review (security + coverage)
-    CC->>GH: git push + gh pr create<br/>(body includes @claude review-pr all)
+    CC->>GH: git push + gh pr create<br/>(metadata committed alongside code)
     GH->>GHA: PR opened → triggers claude.yml
     GHA->>GHA: Load dev-pipeline plugin
     GHA->>GHA: Run batch-review with specialists
@@ -163,6 +208,7 @@ claude --plugin-dir /path/to/claude-dev-pipeline
 |-------|-------------|
 | `/solve-issue [number]` | Classify domain, research libs, delegate to specialist, implement, verify, and create PR |
 | `/batch-issues` | Process multiple issues labeled "claude" in parallel using agent teams |
+| `/context-sync [full]` | Update `.metadata/` for changed files and refresh Component Registry in CLAUDE.md |
 
 ### PR Review
 
