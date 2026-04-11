@@ -15,6 +15,11 @@ validation.
 `atomic-gates` is a direct implementation of that thesis at the plugin
 runtime level.
 
+> **New here?** → [Get started in 5 minutes](./docs/guides/getting-started.md)
+> &nbsp;·&nbsp; [Using with `superpowers`](./docs/guides/using-with-superpowers.md)
+> &nbsp;·&nbsp; [Author a gate](./docs/guides/authoring-atomic-gates.md)
+> &nbsp;·&nbsp; [Author a state machine](./docs/guides/authoring-state-machines.md)
+
 ---
 
 ## The problem rules have
@@ -173,6 +178,11 @@ For a detailed comparison and the roadmap for interop (adapter runtime so
 claude plugin marketplace add lucianfialho/atomic-gates
 claude plugin install atomic-gates
 ```
+
+After installing, the fastest way to see a gate fire is the
+**[Getting started](./docs/guides/getting-started.md)** guide — a
+five-minute hello-world that installs the plugin, configures a scratch
+project, watches a `git commit` get blocked, and unblocks it.
 
 ---
 
