@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Turn project rules into verifiable artifacts. Atomic hooks and state-machine skills that refuse to advance unless the gate condition is met.",
-    "version": "0.2.0"
+    "version": "0.3.0"
   },
   "plugins": [
     {
       "name": "atomic-gates",
       "source": "./",
       "description": "Implementation of Jesse Vincent's Rules and Gates thesis for Claude Code. Blocking hooks on commit + state-machine skills with schema-validated output at every step.",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "author": { "name": "Lucian Fialho" },
       "category": "productivity",
       "tags": ["gates", "hooks", "state-machine", "verification", "rules-as-code"]
