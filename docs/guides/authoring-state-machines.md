@@ -411,6 +411,7 @@ Three things to be aware of when shipping skills in an external plugin:
 
 ## See also
 
+- [Refining converter skeletons](./refining-skeletons.md) — the companion guide for when you *didn't* write `skill.yaml` from scratch but generated it from an existing `SKILL.md` via `lib/import_skill.py` and want to promote the mechanical first draft into a production state machine
 - [`skills/validate-issue/skill.yaml`](../../skills/validate-issue/skill.yaml) — 4-state machine, uses `output_schema` on the first state
 - [`skills/review-pr/skill.yaml`](../../skills/review-pr/skill.yaml) — 3-state machine with findings aggregation
 - [`schemas/skill-machine.schema.json`](../../schemas/skill-machine.schema.json) — the JSON Schema every `skill.yaml` must match
