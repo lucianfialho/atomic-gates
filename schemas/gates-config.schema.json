@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/lucianfialho/atomic-gates/schemas/gates-config.schema.json",
+  "title": "gates config",
+  "description": "Schema for .gates/config.yaml in a target project. Declares the indexed directories and specialists.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "project", "indexed_directories"],
+  "properties": {
+    "version": { "type": "integer", "const": 1 },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "stack": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "specialists": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "indexed_directories": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "specialist"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "specialist": { "type": "string", "minLength": 1 },
+          "tags": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}

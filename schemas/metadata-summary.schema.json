@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/lucianfialho/atomic-gates/schemas/metadata-summary.schema.json",
+  "title": "directory .metadata/summary.yaml",
+  "description": "Index file for a directory listed in .gates/config.yaml. Must be updated whenever any file in that directory is modified.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "title", "status", "covers", "specialist", "last_updated"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable identifier for this indexed directory."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "covers": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Files inside this directory that this summary describes. Use paths relative to the directory."
+    },
+    "specialist": {
+      "type": "string",
+      "minLength": 1
+    },
+    "touched_by_issues": {
+      "type": "array",
+      "items": { "type": "integer" },
+      "uniqueItems": true
+    },
+    "last_updated": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ISO date (YYYY-MM-DD) of the last meaningful update."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["stub", "filled"],
+      "description": "stub = auto-created, must be filled before commit. filled = ready."
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
-  "name": "dev-pipeline",
-  "description": "End-to-end autonomous development pipeline: issues → code → PR → review with quality gates and specialist skills.",
+  "name": "atomic-gates",
+  "description": "Turn project rules into verifiable artifacts. Atomic hooks and state-machine skills that refuse to advance unless the gate condition is met. Implementation of Jesse Vincent's Rules and Gates thesis.",
   "version": "0.1.0",
   "author": {
     "name": "Lucian Fialho",
