@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "review-pr/fetch output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["pr", "diff"],
+  "properties": {
+    "pr": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["number", "title", "files_changed"],
+      "properties": {
+        "number": { "type": "integer" },
+        "title": { "type": "string", "minLength": 1 },
+        "body": { "type": "string" },
+        "base": { "type": "string" },
+        "author": { "type": "string" },
+        "files_changed": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path"],
+            "properties": {
+              "path": { "type": "string", "minLength": 1 },
+              "additions": { "type": "integer" },
+              "deletions": { "type": "integer" }
+            }
+          }
+        }
+      }
+    },
+    "diff": { "type": "string" }
+  }
+}
