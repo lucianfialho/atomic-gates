@@ -253,15 +253,32 @@ def _find_external_skill_yaml(
 
 def _guess_plugin_root_from_skill_path(skill_yaml_path: Path) -> Path:
     """Given a skills/<name>/skill.yaml path, walk up to find the
-    plugin root — the ancestor directory that contains .claude-plugin/
-    or looks like a plugin (has both skills/ and hooks/).
+    plugin root.
+
+    The canonical plugin layout is:
+        <plugin_root>/skills/<skill_name>/skill.yaml
+
+    So the plugin root is the parent of the 'skills' directory
+    closest to the skill file. This is robust against false
+    positives (e.g. ~/.claude/ itself has skills/ and hooks/
+    subdirectories because it's the Claude Code user home, not
+    a plugin root).
+
+    If that shape doesn't hold (very unusual), we look for a
+    .claude-plugin/plugin.json marker file as a secondary check,
+    and finally fall back to parent.parent.parent.
     """
+    # 1. Find the 'skills' directory closest to the skill.yaml
     for ancestor in skill_yaml_path.parents:
-        if (ancestor / ".claude-plugin").exists():
+        if ancestor.name == "skills":
+            return ancestor.parent
+
+    # 2. Fall back to looking for the .claude-plugin/plugin.json marker
+    for ancestor in skill_yaml_path.parents:
+        if (ancestor / ".claude-plugin" / "plugin.json").exists():
             return ancestor
-        if (ancestor / "skills").is_dir() and (ancestor / "hooks").is_dir():
-            return ancestor
-    # Fallback: /<root>/skills/<name>/skill.yaml → /<root>
+
+    # 3. Absolute last resort
     return skill_yaml_path.parent.parent.parent
 
 
@@ -939,6 +956,16 @@ def handle_delegate_state(
         )
 
     save_run(project_dir, parent_run)
+
+    # If the parent's next state is ALSO a delegate, route through the
+    # delegate handler so the next sub-run is created immediately
+    # instead of the agent seeing a bare "execute this delegate" prompt.
+    next_state_def = parent_machine["states"][next_state]
+    if is_delegate_state(next_state_def):
+        return handle_delegate_state(
+            parent_run, parent_machine, next_state_def, next_state, plugin_root, project_dir
+        )
+
     new_context = build_state_context(parent_run, parent_machine, project_dir)
     prompt = state_prompt(parent_machine, next_state, new_context)
     return format_context_message(parent_run, parent_machine, next_state, prompt)
@@ -1079,6 +1106,16 @@ def handle_existing_run(
         )
 
     save_run(project_dir, run)
+
+    # If the next state is a delegate, route through the delegate
+    # handler directly so the sub-run is created on this invocation
+    # instead of asking the agent to "execute" a delegate state.
+    next_state_def = machine["states"][next_state]
+    if is_delegate_state(next_state_def):
+        return handle_delegate_state(
+            run, machine, next_state_def, next_state, plugin_root, project_dir
+        )
+
     new_context = build_state_context(run, machine, project_dir)
     prompt = state_prompt(machine, next_state, new_context)
     return format_context_message(run, machine, next_state, prompt)
