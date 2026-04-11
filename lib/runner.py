@@ -103,20 +103,28 @@ def parse_hook_input() -> dict[str, Any]:
     return {}  # unreachable
 
 
-def extract_skill_call(hook_input: dict) -> tuple[str, dict] | None:
-    """Return (skill_name, arguments) if this is a Skill() call, else None."""
+def extract_skill_call(
+    hook_input: dict,
+) -> tuple[str, str | None, dict] | None:
+    """Return (skill_name, namespace, arguments) for a Skill() call, else None.
+
+    Claude Code prefixes skill names with the owning plugin namespace
+    (e.g. "atomic-gates:validate-issue", "superpowers:tdd"). We split
+    the prefix so callers can (a) look for a local skill.yaml under the
+    bare name, and (b) fall back to the namespace when searching other
+    installed plugins for an adaptable SKILL.md.
+    """
     if hook_input.get("tool_name") != "Skill":
         return None
     tool_input = hook_input.get("tool_input") or {}
-    skill_name = tool_input.get("skill_name") or tool_input.get("skill")
-    if not skill_name:
+    full_name = tool_input.get("skill_name") or tool_input.get("skill")
+    if not full_name:
         return None
 
-    # Claude Code prefixes skill names with the plugin namespace
-    # (e.g. "atomic-gates:validate-issue"). Strip it so we can locate
-    # the file under skills/<bare_name>/skill.yaml.
-    if ":" in skill_name:
-        skill_name = skill_name.split(":", 1)[1]
+    if ":" in full_name:
+        namespace, skill_name = full_name.split(":", 1)
+    else:
+        namespace, skill_name = None, full_name
 
     # Arguments may come as structured dict or as a string (user typed `/skill arg`)
     args_raw = tool_input.get("arguments") or tool_input.get("args") or {}
@@ -126,7 +134,7 @@ def extract_skill_call(hook_input: dict) -> tuple[str, dict] | None:
         arguments = args_raw
     else:
         arguments = {}
-    return skill_name, arguments
+    return skill_name, namespace, arguments
 
 
 def _parse_cli_args(raw: str) -> dict:
@@ -171,6 +179,72 @@ def load_skill_machine(plugin_root: Path, skill_name: str) -> dict | None:
         except ValidationError as e:
             _fail_silent(f"skill.yaml invalid: {e}")
     return machine
+
+
+def load_adapted_skill(
+    skill_name: str, namespace: str | None
+) -> dict | None:
+    """Search ~/.claude/plugins/** for a SKILL.md and wrap it as a
+    single-state machine. Used when no native skill.yaml exists for the
+    invoked name — e.g. when the agent invokes a superpowers skill and
+    we want to run it under atomic-gates for the audit trail alone.
+    """
+    md_path = _find_external_skill_md(skill_name, namespace)
+    if md_path is None:
+        return None
+
+    content = md_path.read_text(encoding="utf-8")
+
+    # Strip YAML frontmatter if present (SKILL.md usually starts with ---)
+    body = content
+    if content.startswith("---\n"):
+        end = content.find("\n---\n", 4)
+        if end != -1:
+            body = content[end + 5 :]
+
+    display_id = f"{namespace}:{skill_name}" if namespace else skill_name
+    return {
+        "id": display_id,
+        "version": 1,
+        "description": f"Adapted from {md_path}",
+        "initial_state": "execute",
+        "states": {
+            "execute": {
+                "description": "Execute the adapted skill body as-is",
+                "agent_prompt": body.strip(),
+                "skip_output_check": True,
+                "transitions": [{"to": "done"}],
+            },
+            "done": {
+                "terminal": True,
+                "description": "Adapted skill finished",
+            },
+        },
+    }
+
+
+def _find_external_skill_md(
+    skill_name: str, namespace: str | None
+) -> Path | None:
+    """Search standard Claude Code plugin install paths for a SKILL.md
+    matching the given skill name. Prefers matches whose path contains
+    the namespace, falls back to any match.
+    """
+    home_plugins = Path.home() / ".claude" / "plugins"
+    if not home_plugins.exists():
+        return None
+
+    pattern = f"skills/{skill_name}/SKILL.md"
+    candidates = list(home_plugins.rglob(pattern))
+    if not candidates:
+        return None
+
+    if namespace:
+        for c in candidates:
+            if namespace in str(c):
+                return c
+
+    return candidates[0]
 
 
 def validate_inputs(machine: dict, arguments: dict) -> list[str]:
@@ -498,37 +572,41 @@ def handle_existing_run(
             "This run already finished. No further action required."
         )
 
+    skip_output_check = state_def.get("skip_output_check", False)
     out_path = run_output_path(project_dir, run["run_id"], current)
-    if not out_path.exists():
-        context = build_state_context(run, machine, project_dir)
-        prompt = state_prompt(machine, current, context)
-        return format_context_message(
-            run, machine, current, prompt,
-            gate_failures=[f"output file missing: {out_path}"],
-        )
 
-    schema_errors = validate_state_output(
-        state_def, out_path, plugin_root
-    )
-    if schema_errors:
-        context = build_state_context(run, machine, project_dir)
-        prompt = state_prompt(machine, current, context)
-        return format_context_message(
-            run, machine, current, prompt, gate_failures=schema_errors
-        )
+    if not skip_output_check:
+        if not out_path.exists():
+            context = build_state_context(run, machine, project_dir)
+            prompt = state_prompt(machine, current, context)
+            return format_context_message(
+                run, machine, current, prompt,
+                gate_failures=[f"output file missing: {out_path}"],
+            )
 
-    gate_failures = run_gates(
-        state_def.get("gate") or [], plugin_root, project_dir, run["run_id"]
-    )
-    if gate_failures:
-        context = build_state_context(run, machine, project_dir)
-        prompt = state_prompt(machine, current, context)
-        return format_context_message(
-            run, machine, current, prompt, gate_failures=gate_failures
+        schema_errors = validate_state_output(
+            state_def, out_path, plugin_root
         )
+        if schema_errors:
+            context = build_state_context(run, machine, project_dir)
+            prompt = state_prompt(machine, current, context)
+            return format_context_message(
+                run, machine, current, prompt, gate_failures=schema_errors
+            )
+
+        gate_failures = run_gates(
+            state_def.get("gate") or [], plugin_root, project_dir, run["run_id"]
+        )
+        if gate_failures:
+            context = build_state_context(run, machine, project_dir)
+            prompt = state_prompt(machine, current, context)
+            return format_context_message(
+                run, machine, current, prompt, gate_failures=gate_failures
+            )
 
     context = build_state_context(run, machine, project_dir)
-    context["output"] = _read_yaml(out_path)
+    if not skip_output_check and out_path.exists():
+        context["output"] = _read_yaml(out_path)
     next_state = pick_next_state(state_def.get("transitions") or [], context)
 
     if next_state is None:
@@ -541,17 +619,22 @@ def handle_existing_run(
         )
 
     run["history"][-1]["exited_at"] = _now()
-    run["history"][-1]["output_path"] = str(out_path)
+    if not skip_output_check and out_path.exists():
+        run["history"][-1]["output_path"] = str(out_path)
     run["current_state"] = next_state
     run["history"].append({"state": next_state, "entered_at": _now()})
 
     if machine["states"][next_state].get("terminal"):
         run["status"] = "terminal"
         save_run(project_dir, run)
+        final_location = (
+            str(out_path) if (not skip_output_check and out_path.exists())
+            else f".gates/runs/{run['run_id']}.yaml (run state)"
+        )
         return (
             f"gates runner — skill={machine['id']} run_id={run['run_id']}\n"
             f"state: {next_state} (terminal)\n\n"
-            f"Machine finished. Final output at {out_path}."
+            f"Machine finished. Final output at {final_location}."
         )
 
     save_run(project_dir, run)
@@ -567,13 +650,20 @@ def main() -> None:
         if call is None:
             _fail_silent("not a Skill() call")
 
-        skill_name, arguments = call
+        skill_name, namespace, arguments = call
         plugin_root = Path(os.environ.get("CLAUDE_PLUGIN_ROOT") or _LIB_DIR.parent)
         project_dir = Path(os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd())
 
+        # 1. Prefer a native skill.yaml under this plugin.
         machine = load_skill_machine(plugin_root, skill_name)
+
+        # 2. Fall back to adapting an external plugin's SKILL.md
+        #    (e.g. superpowers) as a single-state run with audit trail.
         if machine is None:
-            _fail_silent(f"no skill.yaml for {skill_name}")
+            machine = load_adapted_skill(skill_name, namespace)
+
+        if machine is None:
+            _fail_silent(f"no skill.yaml or adaptable SKILL.md for {skill_name}")
 
         run_id = arguments.get("run_id")
         if run_id:
