@@ -29,6 +29,17 @@
             "statusMessage": "Checking PR structure before create..."
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/lib/gate_role.py",
+            "timeout": 15,
+            "statusMessage": "Checking role scope..."
+          }
+        ]
       }
     ],
     "Stop": [
