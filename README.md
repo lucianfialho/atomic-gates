@@ -230,8 +230,16 @@ CLAUDE_PLUGIN_ROOT=$PWD CLAUDE_PROJECT_DIR=/tmp/gates-smoke \
 
 During dev, the plugin is loaded from
 `~/.claude/plugins/cache/atomic-gates/atomic-gates/<version>/`, not from
-the checkout. Sync changes with `rsync -a <section>/ ~/.claude/.../` or
-set up a `dev-sync.sh` script.
+the checkout. Sync changes with:
+
+```bash
+./scripts/dev-sync.sh          # mirror checkout into install paths
+./scripts/dev-sync.sh --dry    # preview without writing
+```
+
+The script mirrors `.claude-plugin/`, `hooks/`, `lib/`, `schemas/`,
+`templates/`, `docs/`, and `skills/validate-issue/` into both the cache
+and marketplace install paths. Idempotent.
 
 ---
 
