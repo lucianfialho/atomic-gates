@@ -1,94 +1,109 @@
-# dev-pipeline
+# atomic-gates — developer context
 
-An autonomous development pipeline plugin for Claude Code.
+This file is loaded by Claude Code whenever you open this checkout for
+development. It's a condensed orientation to the codebase. For the user-
+facing pitch, see [`README.md`](./README.md). For the technical reference,
+see [`docs/atomic-gates.md`](./docs/atomic-gates.md).
 
-## What it does
+## What this plugin is
 
-1. **Issue Solver** (`/solve-issue`) — Classifies issue domain, delegates to the right specialist, implements, verifies, and creates a PR
-2. **PR Review** (`/review-pr`) — Targeted specialist reviews: frontend, backend, security, UX, or all (parallel)
-3. **Code Review** — REVIEW.md + domain-specific rules for automated PR review
-4. **Quality Gates** — Hooks that enforce tests, lint, and build before stopping
-5. **Batch Issues** (`/batch-issues`) — Process multiple issues in parallel with agent teams
-6. **Context Sync** (`/context-sync`) — Builds `.metadata/` knowledge base per directory and keeps the Component Registry below up-to-date
+`atomic-gates` turns declarative rules ("always run tests", "always update
+.metadata/", "always validate PR coverage") into **blocking gates** —
+hooks that refuse to let the agent advance unless a concrete artifact
+exists and passes schema validation.
 
-## Architecture
+Implementation of Jesse Vincent's *Rules and Gates* thesis
+(https://blog.fsck.com/2026/04/07/rules-and-gates/) at the Claude Code
+plugin runtime level.
+
+## Two layers of gates
+
+1. **Atomic gates** — single-shot `PreToolUse` hooks that block one
+   action (e.g. `gate-metadata` blocks `git commit` when
+   `.metadata/summary.yaml` is stale).
+2. **State-machine skills** — YAML machines where each state has an
+   `output_schema`; a runner intercepts `Skill()` invocations, validates
+   output at every transition, and persists runs in `.gates/runs/`.
+
+## Layout
 
 ```
-pipeline.config.json  — User-customizable settings (optional, has defaults)
-schemas/
-  pipeline-config.schema.json — JSON Schema for IDE autocompletion
-
-skills/
-  solve-issue/SKILL.md    — Orchestrator: classify → delegate → implement → verify → PR
-  batch-issues/SKILL.md   — Process multiple issues in parallel
-
-  # Specialists (used for implementation AND review)
-  frontend-dev/SKILL.md   — React/Next.js, components, a11y, responsive
-  backend-dev/SKILL.md    — APIs, database, auth, server logic
-  qa-engineer/SKILL.md    — Tests, edge cases, coverage
-  ux-designer/SKILL.md    — UX heuristics, accessibility, interaction
-  code-reviewer/SKILL.md  — Bugs, security, performance, quality
-
-  # Review skills
-  review-pr/SKILL.md      — Dispatch to specialists (parallel when "all")
-  batch-review/SKILL.md   — All specialists in parallel with unified verdict
-  check-security/SKILL.md — OWASP Top 10, secrets, auth, dependencies
-  suggest-tests/SKILL.md  — Missing tests with skeleton code
-  ux-review/SKILL.md      — Nielsen's heuristics, WCAG 2.1 AA
-  pr-summary/SKILL.md     — Structured PR summary
-  validate-issue/SKILL.md — Verify PR covers issue requirements
-
-review-rules/
-  base.md                 — Always loaded (secrets, errors, style)
-  frontend.md             — .tsx, .jsx, .css files
-  backend.md              — route.ts, actions.ts, api/
-  security.md             — Security reviews
-  database.md             — Migrations, schemas, ORM
-  performance.md          — Rendering, caching, assets
-
-hooks/
-  hooks.json              — Quality gate hooks (Stop, PostToolUse, TaskCompleted)
-
-scripts/
-  load-config.sh          — Config loader (sources pipeline.config.json)
-  check-tests.sh          — Verify tests pass before stopping
-  check-lint.sh           — Run linter after file edits
-  check-build.sh          — Verify build succeeds
-
-.metadata/ (per source directory, committed to repo)
-  context.md              — What the module does, key dependencies, patterns
-  prompt.md               — Origin issue and key implementation decisions
-  summary.md              — One-line description for fast context loading
+atomic-gates/
+├── hooks/hooks.json        PreToolUse hooks for Bash, Edit|Write, Skill
+├── lib/
+│   ├── runner.py           state-machine arbiter
+│   ├── gate_metadata.py    commit gate
+│   ├── gate_pr_structure.py PR body structure gate
+│   ├── gate_role.py        role enforcement gate
+│   └── schema_validate.py  self-contained JSON Schema subset
+├── schemas/                JSON Schemas (config, machine, run-state, metadata)
+├── templates/              stub files for lazy bootstrap
+├── scripts/
+│   ├── dev-sync.sh         mirror checkout → Claude Code install paths
+│   ├── check-tests.sh      legacy Stop hook (tests before stop)
+│   └── check-build.sh      legacy TaskCompleted hook (build before done)
+└── skills/
+    ├── validate-issue/     4-state PR-covers-issue verification machine
+    └── review-pr/          3-state PR review with categorized findings
 ```
 
-## Usage
+## Dev workflow
 
-Install:
-```
-claude plugin marketplace add lucianfialho/claude-dev-pipeline
-claude plugin install dev-pipeline
-```
+The Claude Code runtime loads plugins from
+`~/.claude/plugins/cache/atomic-gates/atomic-gates/<version>/`, NOT from
+this checkout. Edits here do not reach the runtime until you run:
 
-Then:
-```
-/solve-issue 42          — Solve issue #42 (classifies domain, picks specialist)
-/solve-issue             — Pick the next unassigned issue
-/batch-issues            — Process all open issues labeled "claude"
-/review-pr frontend      — Review current PR with frontend specialist
-/review-pr security      — Security-focused review
-/review-pr all           — Run all applicable specialists in parallel
-/suggest-tests           — Suggest missing tests for the current PR
-/check-security          — Security-focused review of current PR
-/ux-review               — UX-focused review of UI changes in current PR
-/pr-summary              — Generate structured PR summary
-/validate-issue          — Check if PR addresses all issue requirements
-/batch-review            — Run all applicable specialists on a PR in parallel
-/context-sync            — Update .metadata/ for changed files (default: diff mode)
-/context-sync full       — Rebuild .metadata/ for all source directories
+```bash
+./scripts/dev-sync.sh
 ```
 
-## Component Registry
-<!-- context-sync: auto-generated — do not edit manually -->
-| Module | Summary | Specialist | Updated |
-|--------|---------|-----------|---------|
-<!-- /context-sync -->
+Idempotent. Mirrors `.claude-plugin/`, `hooks/`, `lib/`, `schemas/`,
+`templates/`, `docs/`, and `skills/validate-issue/` + `skills/review-pr/`
+into both the cache and marketplace install paths.
+
+For a smoke test without restarting Claude Code, invoke the runners
+standalone:
+
+```bash
+# Atomic commit gate
+CLAUDE_PLUGIN_ROOT=$PWD CLAUDE_PROJECT_DIR=/tmp/test \
+  python3 lib/gate_metadata.py <<<'{"tool_name":"Bash","tool_input":{"command":"git commit -m x"}}'
+
+# State-machine runner
+CLAUDE_PLUGIN_ROOT=$PWD CLAUDE_PROJECT_DIR=/tmp/test \
+  python3 lib/runner.py <<<'{"tool_name":"Skill","tool_input":{"skill":"atomic-gates:validate-issue","args":"issue_number=42 pr_number=17"}}'
+```
+
+## Writing a new gate
+
+An atomic gate is a Python script in `lib/` that:
+1. Reads a JSON hook payload from stdin
+2. Checks the relevant condition
+3. Exits `0` (allow), `2` (block with stderr message), or any other code
+   (non-blocking error — action proceeds, error is logged)
+
+The hook must be registered in `hooks/hooks.json` under the appropriate
+`PreToolUse` matcher. Always filter internally first — the matcher only
+selects by tool name, not arguments.
+
+Follow the structure of `lib/gate_metadata.py` as a template. Prefer
+`_noop(reason)` for early returns that should NOT block, and `_block(msg)`
+when the gate fires.
+
+## Writing a new state-machine skill
+
+Create `skills/<name>/skill.yaml` matching `schemas/skill-machine.schema.json`.
+Optionally add `skills/<name>/schemas/<state>.output.schema.json` per
+state to enforce output shape.
+
+Also create `skills/<name>/SKILL.md` with the standard minimal stub that
+points the agent at the `<system-reminder>` the runner will inject each
+turn. Copy from `skills/validate-issue/SKILL.md` as a template.
+
+Add the new skill to `SYNC_DIRS` in `scripts/dev-sync.sh` so the runtime
+picks it up.
+
+## Reference
+
+- [Rules and Gates](https://blog.fsck.com/2026/04/07/rules-and-gates/)
+- [`obra/superpowers`](https://github.com/obra/superpowers) — the skill corpus atomic-gates complements
