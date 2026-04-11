@@ -38,7 +38,14 @@
         "properties": {
           "description": { "type": "string" },
           "agent_prompt": { "type": "string" },
-          "delegate_to": { "type": "string" },
+          "delegate_to": {
+            "type": "string",
+            "description": "Skill name (optionally namespaced) to execute as a sub-run. When present, the runner creates a sub-run instead of prompting the agent, and auto-advances the parent when the sub-run reaches a terminal state."
+          },
+          "delegate_inputs": {
+            "type": "object",
+            "description": "Inputs to pass to the sub-skill. Values are template strings supporting {{inputs.*}}, {{output.*}}, {{outputs.*}} interpolation."
+          },
           "output_schema": { "type": "string" },
           "gate": {
             "type": "array",

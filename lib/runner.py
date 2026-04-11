@@ -508,6 +508,128 @@ def pick_next_state(
     return None
 
 
+# ---------- delegate_to (sub-runs) -------------------------------------------
+
+
+def is_delegate_state(state_def: dict) -> bool:
+    """A state is a delegate state if it declares delegate_to."""
+    return bool(state_def.get("delegate_to"))
+
+
+def resolve_delegate_inputs(state_def: dict, context: dict) -> dict:
+    """Render the delegate_inputs dict, interpolating template strings
+    against the parent run's context. Non-string values pass through
+    unchanged.
+    """
+    raw = state_def.get("delegate_inputs") or {}
+    resolved: dict[str, Any] = {}
+    for key, value in raw.items():
+        if isinstance(value, str):
+            rendered = interpolate(value, context)
+            resolved[key] = _coerce(rendered)
+        else:
+            resolved[key] = value
+    return resolved
+
+
+def find_active_sub_run(
+    project_dir: Path, parent_run_id: str, parent_state: str
+) -> dict | None:
+    """Scan .gates/runs/ for a sub-run whose parent_run_id and
+    parent_state match. Returns the most recently updated one if
+    multiple exist (delegation retry case).
+    """
+    runs_root = runs_dir(project_dir)
+    if not runs_root.exists():
+        return None
+    candidates: list[dict] = []
+    for path in runs_root.glob("*.yaml"):
+        try:
+            run = _read_yaml(path)
+        except Exception:  # noqa: BLE001
+            continue
+        if not isinstance(run, dict):
+            continue
+        if (
+            run.get("parent_run_id") == parent_run_id
+            and run.get("parent_state") == parent_state
+        ):
+            candidates.append(run)
+    if not candidates:
+        return None
+    candidates.sort(key=lambda r: r.get("updated_at") or "", reverse=True)
+    return candidates[0]
+
+
+def get_sub_run_terminal_output(
+    project_dir: Path, sub_run: dict
+) -> dict | None:
+    """When a sub-run has reached a terminal state, find the output
+    of the last NON-terminal state (which is what the parent cares
+    about as the delegate's return value).
+    """
+    history = sub_run.get("history") or []
+    # Walk history in reverse to find the last state that wasn't the
+    # terminal one AND whose output file exists.
+    for entry in reversed(history):
+        state = entry.get("state")
+        output_path_str = entry.get("output_path")
+        if not state or not output_path_str:
+            continue
+        path = Path(output_path_str)
+        if path.exists():
+            try:
+                return _read_yaml(path)
+            except Exception:  # noqa: BLE001
+                return None
+    return None
+
+
+def create_sub_run(
+    project_dir: Path,
+    parent_run: dict,
+    parent_state: str,
+    delegate_skill: str,
+    delegate_namespace: str | None,
+    inputs: dict,
+    plugin_root: Path,
+) -> dict | None:
+    """Create a new persisted sub-run for a delegate_to state.
+
+    Returns the sub-run dict, or None if the delegate skill couldn't
+    be loaded (which causes the parent state to fail cleanly).
+    """
+    machine = load_skill_machine(plugin_root, delegate_skill, delegate_namespace)
+    if machine is None:
+        machine = load_adapted_skill(delegate_skill, delegate_namespace)
+    if machine is None:
+        return None
+
+    input_errors = validate_inputs(machine, inputs)
+    if input_errors:
+        return {
+            "_delegate_error": "invalid delegate inputs: " + "; ".join(input_errors)
+        }
+
+    sub_run_id = uuid.uuid4().hex[:12]
+    initial = machine["initial_state"]
+    sub_run = {
+        "run_id": sub_run_id,
+        "skill_id": machine["id"],
+        "status": "running",
+        "current_state": initial,
+        "inputs": inputs,
+        "created_at": _now(),
+        "updated_at": _now(),
+        "history": [{"state": initial, "entered_at": _now()}],
+        "parent_run_id": parent_run["run_id"],
+        "parent_state": parent_state,
+        "parent_skill_id": parent_run["skill_id"],
+    }
+    _write_yaml(run_file(project_dir, sub_run_id), sub_run)
+    return sub_run
+
+
 # ---------- gate execution ---------------------------------------------------
 
 
@@ -652,6 +774,204 @@ def format_context_message(
 # ---------- main flow --------------------------------------------------------
 
 
+def handle_delegate_state(
+    parent_run: dict,
+    parent_machine: dict,
+    state_def: dict,
+    current_state: str,
+    plugin_root: Path,
+    project_dir: Path,
+) -> str:
+    """Handle a state that delegates to another skill.
+
+    Three sub-cases:
+
+      1. No sub-run exists yet — create one, return instructions that
+         point the agent at the first state of the sub-skill.
+      2. A sub-run exists but hasn't reached terminal — tell the agent
+         to continue executing it via Skill(<sub>, { run_id }).
+      3. A sub-run exists AND has terminated — extract its last
+         non-terminal output, use it as the parent state's output,
+         and advance the parent via its own transitions.
+    """
+    # Parse delegate target. It may carry a namespace: "plugin:skill".
+    delegate_target = state_def["delegate_to"]
+    if ":" in delegate_target:
+        delegate_namespace, delegate_skill = delegate_target.split(":", 1)
+    else:
+        delegate_namespace, delegate_skill = None, delegate_target
+
+    # Look for an existing sub-run for this parent_state
+    existing = find_active_sub_run(
+        project_dir, parent_run["run_id"], current_state
+    )
+
+    if existing is None:
+        # Case 1 — no sub-run yet. Create one.
+        parent_context = build_state_context(parent_run, parent_machine, project_dir)
+        inputs = resolve_delegate_inputs(state_def, parent_context)
+        sub_run = create_sub_run(
+            project_dir,
+            parent_run,
+            current_state,
+            delegate_skill,
+            delegate_namespace,
+            inputs,
+            plugin_root,
+        )
+        if sub_run is None:
+            return (
+                f"gates runner — delegate failed in {parent_machine['id']}\n"
+                f"state: {current_state}\n\n"
+                f"Could not load sub-skill '{delegate_target}'. Check that "
+                f"the skill exists in this plugin or in an installed plugin "
+                f"whose namespace matches."
+            )
+        if "_delegate_error" in sub_run:
+            return (
+                f"gates runner — delegate failed in {parent_machine['id']}\n"
+                f"state: {current_state}\n\n"
+                f"{sub_run['_delegate_error']}"
+            )
+
+        # Record the sub_run_id in the parent's history entry
+        parent_run["history"][-1]["sub_run_id"] = sub_run["run_id"]
+        save_run(project_dir, parent_run)
+
+        # Now inject the first state of the sub-skill as if it were
+        # a normal invocation. We load the sub-machine fresh to build
+        # the proper context.
+        sub_machine = load_skill_machine(
+            plugin_root, delegate_skill, delegate_namespace
+        ) or load_adapted_skill(delegate_skill, delegate_namespace)
+        if sub_machine is None:
+            return "gates runner — sub-machine vanished between create_sub_run and inject"
+
+        sub_context = build_state_context(sub_run, sub_machine, project_dir)
+        sub_prompt = state_prompt(sub_machine, sub_run["current_state"], sub_context)
+        return format_delegate_entry_message(
+            parent_run,
+            parent_machine,
+            current_state,
+            sub_run,
+            sub_machine,
+            sub_prompt,
+        )
+
+    # Sub-run exists. Reload IT (not the cached copy from find_active_sub_run)
+    # to make sure we have the latest state.
+    sub_run = load_run(project_dir, existing["run_id"])
+    if sub_run is None:
+        return (
+            f"gates runner — sub-run {existing['run_id']} vanished unexpectedly"
+        )
+
+    if sub_run["status"] != "terminal":
+        # Case 2 — sub-run still running. Tell the agent to continue it.
+        sub_machine = load_skill_machine(
+            plugin_root, delegate_skill, delegate_namespace
+        ) or load_adapted_skill(delegate_skill, delegate_namespace)
+        if sub_machine is None:
+            return "gates runner — sub-machine unloadable during resume"
+        return (
+            f"gates runner — skill={parent_machine['id']} "
+            f"run_id={parent_run['run_id']}\n"
+            f"state: {current_state} (delegating to sub-run)\n\n"
+            f"Sub-run {sub_run['run_id']} is still executing at state "
+            f"'{sub_run['current_state']}'. Continue advancing the sub-run "
+            f"by invoking Skill({sub_run['skill_id']}, {{ run_id: "
+            f"'{sub_run['run_id']}' }}) until it reaches a terminal state. "
+            f"Once terminal, re-invoke the parent with "
+            f"Skill({parent_machine['id']}, {{ run_id: '{parent_run['run_id']}' }})."
+        )
+
+    # Case 3 — sub-run has terminated. Extract its output, use as
+    # the parent state's output, advance parent via transitions.
+    sub_output = get_sub_run_terminal_output(project_dir, sub_run)
+    if sub_output is None:
+        return (
+            f"gates runner — sub-run {sub_run['run_id']} reached terminal "
+            f"but had no recoverable output. Cannot advance parent state."
+        )
+
+    # Build parent context with the sub-run's output attached as the
+    # "output" of the delegate state, then pick next via transitions.
+    context = build_state_context(parent_run, parent_machine, project_dir)
+    context["output"] = sub_output
+
+    next_state = pick_next_state(
+        state_def.get("transitions") or [], context
+    )
+    if next_state is None:
+        parent_run["status"] = "error"
+        parent_run["error"] = (
+            f"no transition matched from delegate state {current_state} "
+            f"after sub-run {sub_run['run_id']} terminated"
+        )
+        save_run(project_dir, parent_run)
+        return (
+            f"gates runner — run {parent_run['run_id']} errored: "
+            f"no transition matched from delegate state '{current_state}'."
+        )
+
+    # Persist the sub-run output as the parent's state output so future
+    # states can reference it via {{outputs.<state>}}.
+    parent_state_output_path = run_output_path(
+        project_dir, parent_run["run_id"], current_state
+    )
+    _write_yaml(parent_state_output_path, sub_output)
+
+    parent_run["history"][-1]["exited_at"] = _now()
+    parent_run["history"][-1]["output_path"] = str(parent_state_output_path)
+    parent_run["current_state"] = next_state
+    parent_run["history"].append({"state": next_state, "entered_at": _now()})
+
+    if parent_machine["states"][next_state].get("terminal"):
+        parent_run["status"] = "terminal"
+        save_run(project_dir, parent_run)
+        return (
+            f"gates runner — skill={parent_machine['id']} "
+            f"run_id={parent_run['run_id']}\n"
+            f"state: {next_state} (terminal)\n\n"
+            f"Machine finished. Delegate state '{current_state}' returned "
+            f"from sub-run {sub_run['run_id']}. Final output at "
+            f"{parent_state_output_path}."
+        )
+
+    save_run(project_dir, parent_run)
+    new_context = build_state_context(parent_run, parent_machine, project_dir)
+    prompt = state_prompt(parent_machine, next_state, new_context)
+    return format_context_message(parent_run, parent_machine, next_state, prompt)
+
+
+def format_delegate_entry_message(
+    parent_run: dict,
+    parent_machine: dict,
+    parent_state: str,
+    sub_run: dict,
+    sub_machine: dict,
+    sub_prompt: str,
+) -> str:
+    """Message shown to the agent when a delegate state creates a new sub-run."""
+    return (
+        f"gates runner — skill={parent_machine['id']} "
+        f"run_id={parent_run['run_id']}\n"
+        f"state: {parent_state} (delegating to {sub_machine['id']})\n\n"
+        f"This state delegates to sub-skill '{sub_machine['id']}'. A new "
+        f"sub-run was created:\n"
+        f"  sub_run_id: {sub_run['run_id']}\n"
+        f"  initial_state: {sub_run['current_state']}\n\n"
+        f"FIRST SUB-STATE TASK:\n"
+        f"{sub_prompt.strip()}\n\n"
+        f"Execute the sub-skill by invoking "
+        f"Skill({sub_machine['id']}, {{ run_id: '{sub_run['run_id']}' }}) "
+        f"turn by turn until it reaches a terminal state. Once the sub-run "
+        f"is terminal, re-invoke the parent with "
+        f"Skill({parent_machine['id']}, {{ run_id: '{parent_run['run_id']}' }}) "
+        f"and the parent will pick up the sub's final output and advance."
+    )
+
+
 def handle_existing_run(
     run: dict,
     machine: dict,
@@ -667,6 +987,15 @@ def handle_existing_run(
             f"gates runner — skill={machine['id']} run_id={run['run_id']}\n"
             f"state: {current} (terminal)\n\n"
             "This run already finished. No further action required."
+        )
+
+    # Delegate-to states: the state doesn't run the agent directly —
+    # it creates/resumes a sub-run on another skill. When the sub-run
+    # terminates, the parent picks up the sub's final output as if it
+    # were its own and advances via transitions.
+    if is_delegate_state(state_def):
+        return handle_delegate_state(
+            run, machine, state_def, current, plugin_root, project_dir
         )
 
     skip_output_check = state_def.get("skip_output_check", False)
@@ -728,6 +1057,21 @@ def handle_existing_run(
             str(out_path) if (not skip_output_check and out_path.exists())
             else f".gates/runs/{run['run_id']}.yaml (run state)"
         )
+        # If this is a sub-run (created by a parent's delegate_to state),
+        # direct the agent to resume the parent instead of stopping.
+        parent_run_id = run.get("parent_run_id")
+        parent_skill_id = run.get("parent_skill_id")
+        if parent_run_id and parent_skill_id:
+            return (
+                f"gates runner — skill={machine['id']} run_id={run['run_id']}\n"
+                f"state: {next_state} (terminal, sub-run complete)\n\n"
+                f"Sub-run finished. Final output at {final_location}.\n\n"
+                f"This run was delegated from parent run {parent_run_id} "
+                f"(skill {parent_skill_id}). Resume the parent by invoking "
+                f"Skill({parent_skill_id}, {{ run_id: '{parent_run_id}' }}). "
+                f"The parent will pick up this sub-run's output and advance "
+                f"via its own transitions."
+            )
         return (
             f"gates runner — skill={machine['id']} run_id={run['run_id']}\n"
             f"state: {next_state} (terminal)\n\n"
@@ -784,9 +1128,26 @@ def main() -> None:
             return
 
         run = create_run(project_dir, machine, arguments)
-        context = build_state_context(run, machine, project_dir)
-        prompt = state_prompt(machine, run["current_state"], context)
-        message = format_context_message(run, machine, run["current_state"], prompt)
+        initial_state_def = machine["states"][run["current_state"]]
+
+        # If the initial state is a delegate, route through the delegate
+        # handler so it creates the sub-run on first invocation instead
+        # of asking the agent to "execute" the delegate state directly.
+        if is_delegate_state(initial_state_def):
+            message = handle_delegate_state(
+                run,
+                machine,
+                initial_state_def,
+                run["current_state"],
+                plugin_root,
+                project_dir,
+            )
+        else:
+            context = build_state_context(run, machine, project_dir)
+            prompt = state_prompt(machine, run["current_state"], context)
+            message = format_context_message(
+                run, machine, run["current_state"], prompt
+            )
         _emit(message)
 
     except SystemExit:

@@ -25,10 +25,26 @@
           "entered_at": { "type": "string" },
           "exited_at": { "type": "string" },
           "output_path": { "type": "string" },
-          "gate_failures": { "type": "array", "items": { "type": "string" } }
+          "gate_failures": { "type": "array", "items": { "type": "string" } },
+          "sub_run_id": {
+            "type": "string",
+            "description": "When this state delegated to a sub-skill, the run_id of the sub-run."
+          }
         }
       }
     },
-    "error": { "type": "string" }
+    "error": { "type": "string" },
+    "parent_run_id": {
+      "type": "string",
+      "description": "When this run is a sub-run created by a delegate_to state, points at the run_id of the parent run."
+    },
+    "parent_state": {
+      "type": "string",
+      "description": "When this run is a sub-run, the name of the state in the parent run that created this sub-run."
+    },
+    "parent_skill_id": {
+      "type": "string",
+      "description": "When this run is a sub-run, the skill_id of the parent run. Used to tell the agent which skill to invoke to resume the parent."
+    }
   }
 }
