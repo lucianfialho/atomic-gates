@@ -174,10 +174,6 @@ claude plugin marketplace add lucianfialho/atomic-gates
 claude plugin install atomic-gates
 ```
 
-*Note: during the rename transition, the plugin also lives at the legacy
-`lucianfialho/claude-dev-pipeline` repo and registers locally as
-`dev-pipeline`. Both point to the same code.*
-
 ---
 
 ## Adopt it in a project
