@@ -21,6 +21,12 @@
             "command": "python3 ${CLAUDE_PLUGIN_ROOT}/lib/gate_metadata.py",
             "timeout": 30,
             "statusMessage": "Checking .metadata/ before commit..."
+          },
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/lib/gate_pr_structure.py",
+            "timeout": 30,
+            "statusMessage": "Checking PR structure before create..."
           }
         ]
       }
