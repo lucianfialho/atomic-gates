@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/lucianfialho/atomic-gates/schemas/skill-machine.schema.json",
+  "title": "gates skill machine",
+  "description": "Schema for skills/<name>/skill.yaml — a state machine executed by the gates runner.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "version", "initial_state", "states"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "version": { "type": "integer", "const": 1 },
+    "description": { "type": "string" },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "required": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "type"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "type": { "type": "string", "enum": ["string", "integer", "number", "boolean"] }
+            }
+          }
+        }
+      }
+    },
+    "initial_state": { "type": "string", "minLength": 1 },
+    "states": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "description": { "type": "string" },
+          "agent_prompt": { "type": "string" },
+          "delegate_to": { "type": "string" },
+          "output_schema": { "type": "string" },
+          "gate": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["script"],
+              "properties": {
+                "script": { "type": "string", "minLength": 1 },
+                "on_fail": { "type": "string", "enum": ["retry_state", "fail_run"] }
+              }
+            }
+          },
+          "transitions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["to"],
+              "properties": {
+                "to": { "type": "string", "minLength": 1 },
+                "when": { "type": "string" }
+              }
+            }
+          },
+          "terminal": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}

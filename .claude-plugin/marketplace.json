@@ -1,22 +1,22 @@
 {
-  "name": "dev-pipeline",
+  "name": "atomic-gates",
   "owner": {
     "name": "Lucian Fialho",
     "email": "lucian@fialho.dev"
   },
   "metadata": {
-    "description": "Autonomous development pipeline: issues → code → PR → review with quality gates",
-    "version": "1.0.0"
+    "description": "Turn project rules into verifiable artifacts. Atomic hooks and state-machine skills that refuse to advance unless the gate condition is met.",
+    "version": "0.1.0"
   },
   "plugins": [
     {
-      "name": "dev-pipeline",
+      "name": "atomic-gates",
       "source": "./",
-      "description": "End-to-end autonomous development pipeline: issues → code → PR → review with quality gates and specialist skills.",
-      "version": "1.0.0",
+      "description": "Implementation of Jesse Vincent's Rules and Gates thesis for Claude Code. Blocking hooks on commit + state-machine skills with schema-validated output at every step.",
+      "version": "0.1.0",
       "author": { "name": "Lucian Fialho" },
       "category": "productivity",
-      "tags": ["github", "issues", "code-review", "ci-cd", "automation"]
+      "tags": ["gates", "hooks", "state-machine", "verification", "rules-as-code"]
     }
   ]
 }

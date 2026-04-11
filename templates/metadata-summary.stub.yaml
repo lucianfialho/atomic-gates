@@ -1,0 +1,13 @@
+# Auto-generated stub by gates. Fill this in before committing.
+# Fields marked TODO must be replaced with real content.
+# Change `status: stub` to `status: filled` when done.
+
+id: TODO-id
+title: TODO-title
+tags: []
+covers:
+  - TODO-file
+specialist: TODO-specialist
+touched_by_issues: []
+last_updated: TODO-date
+status: stub

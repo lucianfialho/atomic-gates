@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/lucianfialho/atomic-gates/schemas/run-state.schema.json",
+  "title": "gates run state",
+  "description": "Schema for .gates/runs/<run_id>.yaml — the persisted state of a skill machine execution.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["run_id", "skill_id", "status", "current_state", "inputs", "history"],
+  "properties": {
+    "run_id": { "type": "string", "minLength": 1 },
+    "skill_id": { "type": "string", "minLength": 1 },
+    "status": { "type": "string", "enum": ["running", "terminal", "error"] },
+    "current_state": { "type": "string", "minLength": 1 },
+    "inputs": { "type": "object" },
+    "created_at": { "type": "string" },
+    "updated_at": { "type": "string" },
+    "history": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["state", "entered_at"],
+        "properties": {
+          "state": { "type": "string" },
+          "entered_at": { "type": "string" },
+          "exited_at": { "type": "string" },
+          "output_path": { "type": "string" },
+          "gate_failures": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "error": { "type": "string" }
+  }
+}

@@ -1,6 +1,30 @@
 {
   "description": "Quality gates for autonomous development pipeline",
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/lib/runner.py",
+            "timeout": 30,
+            "statusMessage": "gates runner..."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/lib/gate_metadata.py",
+            "timeout": 30,
+            "statusMessage": "Checking .metadata/ before commit..."
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
@@ -9,20 +33,6 @@
             "command": "${CLAUDE_PLUGIN_ROOT}/scripts/check-tests.sh",
             "timeout": 120,
             "statusMessage": "Running quality gates..."
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/check-lint.sh",
-            "async": true,
-            "timeout": 30,
-            "statusMessage": "Linting..."
           }
         ]
       }
