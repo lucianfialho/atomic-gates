@@ -1,7 +1,7 @@
 {
   "name": "atomic-gates",
   "description": "Turn project rules into verifiable artifacts. Atomic hooks and state-machine skills that refuse to advance unless the gate condition is met. Implementation of Jesse Vincent's Rules and Gates thesis.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "author": {
     "name": "Lucian Fialho",
     "email": "lucian@fialho.dev"
