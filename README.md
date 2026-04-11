@@ -232,7 +232,17 @@ atomic-gates/
     └── schemas/              per-state output schemas
 ```
 
-Full technical reference: [`docs/atomic-gates.md`](./docs/atomic-gates.md).
+**Guides (start here):**
+
+- [Getting started](./docs/guides/getting-started.md) — hello-world in 5 minutes
+- [Using with `superpowers`](./docs/guides/using-with-superpowers.md) — how both plugins coexist
+- [Authoring state-machine skills](./docs/guides/authoring-state-machines.md) — write a new skill
+- [Authoring atomic gates](./docs/guides/authoring-atomic-gates.md) — write a new blocking hook
+
+**Reference:**
+
+- [`docs/atomic-gates.md`](./docs/atomic-gates.md) — full technical reference (schemas, layout, runtime)
+- [`docs/compatibility-with-superpowers.md`](./docs/compatibility-with-superpowers.md) — positioning vs `superpowers`
 
 ---
 
