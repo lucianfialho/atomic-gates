@@ -120,22 +120,28 @@ that **at the runtime level**, not the prompt level.
 
 ## What ships today
 
-**Atomic gates:**
+**Atomic gates (blocking hooks):**
 
 - `gate-metadata` — blocks `git commit` without updated `.metadata/summary.yaml`
+- `gate-pr-structure` — blocks `gh pr create` with missing required sections
+- `gate-role` — blocks `Edit`/`Write` outside the active specialist's scope
 
-**State-machine skills:**
-
-- `validate-issue` — 4 states: `fetch → extract_requirements → check_coverage → emit_verdict → done`
-- `review-pr` — 3 states: `fetch → review → emit_verdict → done`, with findings tagged by domain + severity
-
-**Substrate:**
+**Runtime substrate:**
 
 - State-machine runner (`PreToolUse: Skill` hook, Python)
+- Cross-plugin skill discovery — runs `skill.yaml` from ANY installed plugin
+- Offline SKILL.md → skill.yaml converter (`lib/import_skill.py`)
 - Self-contained JSON Schema subset validator (only runtime dep is `pyyaml`)
 - Schemas for config, skill machines, run state, metadata summaries
 - Stub templates for lazy bootstrap
 - `scripts/dev-sync.sh` for mirroring the checkout into Claude Code install paths
+
+**No skills.** `atomic-gates` is a pure runtime. For a ready-to-use
+state-machine skill corpus, install
+[`lucianfialho/claude-dev-pipeline`](https://github.com/lucianfialho/claude-dev-pipeline)
+alongside — it ships 15 skills (`solve-issue`, `review-pr`,
+`validate-issue`, specialists, review passes) consumed by this runtime
+via cross-plugin discovery.
 
 ---
 
@@ -211,8 +217,8 @@ to come with a fresh summary.
 ### 3. (Optional) Use state-machine skills
 
 ```
-Skill(atomic-gates:validate-issue, { issue_number: 42, pr_number: 17 })
-Skill(atomic-gates:review-pr, { pr_number: 42 })
+Skill(claude-dev-pipeline:validate-issue, { issue_number: 42, pr_number: 17 })
+Skill(claude-dev-pipeline:review-pr, { pr_number: 42 })
 ```
 
 The runner takes over. Each turn is a state. Follow the system-reminder
@@ -283,7 +289,7 @@ CLAUDE_PLUGIN_ROOT=$PWD CLAUDE_PROJECT_DIR=/tmp/gates-smoke \
 
 # State-machine runner standalone
 CLAUDE_PLUGIN_ROOT=$PWD CLAUDE_PROJECT_DIR=/tmp/gates-smoke \
-  python3 lib/runner.py <<<'{"tool_name":"Skill","tool_input":{"skill":"atomic-gates:validate-issue","args":"issue_number=42 pr_number=17"}}'
+  python3 lib/runner.py <<<'{"tool_name":"Skill","tool_input":{"skill":"claude-dev-pipeline:validate-issue","args":"issue_number=42 pr_number=17"}}'
 ```
 
 During dev, the plugin is loaded from

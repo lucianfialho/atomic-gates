@@ -31,8 +31,6 @@ SYNC_DIRS=(
   "schemas"
   "templates"
   "docs"
-  "skills/validate-issue"
-  "skills/review-pr"
 )
 
 DRY=""

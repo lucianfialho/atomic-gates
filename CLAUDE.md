@@ -35,17 +35,20 @@ atomic-gates/
 │   ├── gate_metadata.py    commit gate
 │   ├── gate_pr_structure.py PR body structure gate
 │   ├── gate_role.py        role enforcement gate
+│   ├── import_skill.py     SKILL.md → skill.yaml converter
 │   └── schema_validate.py  self-contained JSON Schema subset
 ├── schemas/                JSON Schemas (config, machine, run-state, metadata)
 ├── templates/              stub files for lazy bootstrap
-├── scripts/
-│   ├── dev-sync.sh         mirror checkout → Claude Code install paths
-│   ├── check-tests.sh      legacy Stop hook (tests before stop)
-│   └── check-build.sh      legacy TaskCompleted hook (build before done)
-└── skills/
-    ├── validate-issue/     4-state PR-covers-issue verification machine
-    └── review-pr/          3-state PR review with categorized findings
+└── scripts/
+    ├── dev-sync.sh         mirror checkout → Claude Code install paths
+    ├── check-tests.sh      legacy Stop hook (tests before stop)
+    └── check-build.sh      legacy TaskCompleted hook (build before done)
 ```
+
+**No skills/ directory.** atomic-gates is a pure runtime plugin. For
+an actual skill corpus consumed by this runtime via cross-plugin
+discovery, see
+[`lucianfialho/claude-dev-pipeline`](https://github.com/lucianfialho/claude-dev-pipeline).
 
 ## Dev workflow
 
@@ -58,8 +61,8 @@ this checkout. Edits here do not reach the runtime until you run:
 ```
 
 Idempotent. Mirrors `.claude-plugin/`, `hooks/`, `lib/`, `schemas/`,
-`templates/`, `docs/`, and `skills/validate-issue/` + `skills/review-pr/`
-into both the cache and marketplace install paths.
+`templates/`, and `docs/` into both the cache and marketplace install
+paths.
 
 For a smoke test without restarting Claude Code, invoke the runners
 standalone:
@@ -69,9 +72,9 @@ standalone:
 CLAUDE_PLUGIN_ROOT=$PWD CLAUDE_PROJECT_DIR=/tmp/test \
   python3 lib/gate_metadata.py <<<'{"tool_name":"Bash","tool_input":{"command":"git commit -m x"}}'
 
-# State-machine runner
+# State-machine runner (requires claude-dev-pipeline installed for a skill to find)
 CLAUDE_PLUGIN_ROOT=$PWD CLAUDE_PROJECT_DIR=/tmp/test \
-  python3 lib/runner.py <<<'{"tool_name":"Skill","tool_input":{"skill":"atomic-gates:validate-issue","args":"issue_number=42 pr_number=17"}}'
+  python3 lib/runner.py <<<'{"tool_name":"Skill","tool_input":{"skill":"claude-dev-pipeline:validate-issue","args":"issue_number=42 pr_number=17"}}'
 ```
 
 ## Writing a new gate
@@ -92,16 +95,29 @@ when the gate fires.
 
 ## Writing a new state-machine skill
 
-Create `skills/<name>/skill.yaml` matching `schemas/skill-machine.schema.json`.
-Optionally add `skills/<name>/schemas/<state>.output.schema.json` per
-state to enforce output shape.
+State-machine skills don't live in this repo — they belong in a
+separate plugin (like `claude-dev-pipeline`) which the runner
+discovers via cross-plugin search. To author a new skill:
 
-Also create `skills/<name>/SKILL.md` with the standard minimal stub that
-points the agent at the `<system-reminder>` the runner will inject each
-turn. Copy from `skills/validate-issue/SKILL.md` as a template.
+1. In your own plugin repo, create `skills/<name>/skill.yaml` matching
+   the schema at [`schemas/skill-machine.schema.json`](./schemas/skill-machine.schema.json).
+2. Optionally add `skills/<name>/schemas/<state>.output.schema.json`
+   per state to enforce output shape.
+3. Create `skills/<name>/SKILL.md` with the standard minimal stub that
+   points the agent at the `<system-reminder>` the runner will inject
+   each turn. See [`authoring-state-machines.md`](./docs/guides/authoring-state-machines.md)
+   for the template.
+4. Publish/install your plugin normally. The atomic-gates runner will
+   discover it via cross-plugin search (see v0.3.0 changelog).
 
-Add the new skill to `SYNC_DIRS` in `scripts/dev-sync.sh` so the runtime
-picks it up.
+If you already have a prose `SKILL.md` from another plugin and want a
+state-machine skeleton, run the converter:
+
+```bash
+python3 lib/import_skill.py /path/to/SKILL.md -o /path/to/skill.yaml
+```
+
+Then refine per [`refining-skeletons.md`](./docs/guides/refining-skeletons.md).
 
 ## Reference
 
