@@ -345,6 +345,70 @@ with the `run_id` from the reminder."
 
 ---
 
+## Shipping skills in a separate plugin (cross-plugin discovery)
+
+You don't have to ship your state-machine skills inside `atomic-gates`
+itself. Since v0.3.0, the runner discovers skills across **any**
+installed plugin. This is what lets a dedicated plugin (for example,
+an `autonomous-dev-pipeline`) ship its own `skills/<name>/skill.yaml`
+files and have them executed by the atomic-gates runner as native
+state machines — not flattened into single-state adapted runs.
+
+### How discovery works
+
+When the agent invokes `Skill(my-plugin:solve-issue, { ... })`:
+
+1. Runner extracts `namespace=my-plugin` and `skill_name=solve-issue`.
+2. Runner looks for `skills/solve-issue/skill.yaml` under the current
+   plugin root (atomic-gates itself). **Not found.**
+3. Runner falls back to `~/.claude/plugins/**/skills/solve-issue/skill.yaml`,
+   preferring matches whose path contains `my-plugin`.
+4. When it finds the external `skill.yaml`, it:
+   - Validates it against `schemas/skill-machine.schema.json` from atomic-gates (the schema is authoritative)
+   - Walks up from the file to find the owning plugin root (looking for `.claude-plugin/` or `skills/` + `hooks/` siblings)
+   - Stores that root internally so `output_schema` paths inside the external skill resolve correctly
+   - Namespaces the `id` in the run-state as `my-plugin:solve-issue` for unambiguous audit trail
+
+### What this unlocks
+
+You can now build a **separate plugin** whose entire value proposition
+is a corpus of state-machine skills, and use atomic-gates strictly as
+the runtime. Two concrete examples:
+
+- **A dev-pipeline plugin**: `skills/solve-issue`, `skills/backend-dev`,
+  `skills/frontend-dev`, etc. Each as a state machine with schema-
+  validated transitions. Install `atomic-gates` alongside and every
+  skill gets audit trail, schema validation, and run persistence for
+  free.
+
+- **A domain-specific pipeline**: your team ships a plugin with skills
+  like `ship-new-feature`, `investigate-incident`, `migrate-schema`.
+  Each is a state machine tuned for your workflow. `atomic-gates`
+  never changes — it just runs them.
+
+### Constraints
+
+Three things to be aware of when shipping skills in an external plugin:
+
+1. **Your skill.yaml paths are relative to YOUR plugin root**, not
+   atomic-gates. `output_schema: skills/foo/schemas/bar.json` resolves
+   inside your plugin. Good practice: always use the full path from
+   your plugin root (`skills/<name>/schemas/<state>.output.schema.json`)
+   rather than trying to use `..` or absolute paths.
+
+2. **The schema is atomic-gates' schema, not yours.** You can't extend
+   the state-machine schema from your plugin — your `skill.yaml` must
+   conform to `schemas/skill-machine.schema.json` in atomic-gates.
+   If you need fields atomic-gates doesn't support, file an issue there.
+
+3. **Skill name collisions.** If two plugins both ship
+   `skills/solve-issue/skill.yaml`, the namespace in the invocation
+   disambiguates: `Skill(plugin-a:solve-issue)` vs
+   `Skill(plugin-b:solve-issue)`. But if you invoke without a
+   namespace, the first match wins — test both orders.
+
+---
+
 ## See also
 
 - [`skills/validate-issue/skill.yaml`](../../skills/validate-issue/skill.yaml) — 4-state machine, uses `output_schema` on the first state

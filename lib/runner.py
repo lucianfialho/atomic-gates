@@ -165,11 +165,54 @@ def _coerce(value: str) -> Any:
 # ---------- skill.yaml loading & validation ----------------------------------
 
 
-def load_skill_machine(plugin_root: Path, skill_name: str) -> dict | None:
-    """Load skills/<name>/skill.yaml. Returns None if it doesn't exist."""
-    path = plugin_root / "skills" / skill_name / "skill.yaml"
-    if not path.exists():
-        return None
+def load_skill_machine(
+    plugin_root: Path, skill_name: str, namespace: str | None = None
+) -> dict | None:
+    """Load skills/<name>/skill.yaml for the given skill.
+
+    Search order:
+      1. The current plugin (atomic-gates itself) — skills/<name>/skill.yaml
+         under `plugin_root`. This is how atomic-gates' own reference
+         skills (validate-issue, review-pr) are loaded.
+      2. If the invocation carried a `namespace` prefix (e.g.
+         "claude-dev-pipeline:solve-issue"), search other installed
+         plugins under ~/.claude/plugins/** for a matching skill.yaml.
+         This is what lets a SEPARATE plugin ship its own state-machine
+         skills that the atomic-gates runner executes natively.
+
+    When a skill is loaded from an external plugin, the returned machine
+    has an `_origin_plugin_root` key pointing at the plugin directory
+    that owns the skill. Later stages (output schema resolution) use
+    that path so relative references inside the external skill work.
+    """
+    # 1. Prefer a skill under the current plugin root
+    local_path = plugin_root / "skills" / skill_name / "skill.yaml"
+    if local_path.exists():
+        machine = _load_and_validate_skill_yaml(local_path, plugin_root)
+        machine["_origin_plugin_root"] = str(plugin_root)
+        return machine
+
+    # 2. Fall back to external plugins on disk
+    if namespace:
+        external_path = _find_external_skill_yaml(skill_name, namespace)
+        if external_path is not None:
+            origin_root = _guess_plugin_root_from_skill_path(external_path)
+            machine = _load_and_validate_skill_yaml(external_path, plugin_root)
+            machine["_origin_plugin_root"] = str(origin_root)
+            # Namespace the id so run-state audit trail is unambiguous
+            # across plugins (e.g. claude-dev-pipeline:solve-issue instead
+            # of just solve-issue)
+            machine["id"] = f"{namespace}:{machine['id']}"
+            return machine
+
+    return None
+
+
+def _load_and_validate_skill_yaml(path: Path, plugin_root: Path) -> dict:
+    """Read a skill.yaml from disk and validate against the schema that
+    ships with atomic-gates. The schema is authoritative regardless of
+    which plugin owns the skill file.
+    """
     machine = _read_yaml(path)
     schema_path = plugin_root / "schemas" / "skill-machine.schema.json"
     if schema_path.exists():
@@ -177,8 +220,49 @@ def load_skill_machine(plugin_root: Path, skill_name: str) -> dict | None:
         try:
             validate(machine, schema)
         except ValidationError as e:
-            _fail_silent(f"skill.yaml invalid: {e}")
+            _fail_silent(f"skill.yaml invalid at {path}: {e}")
     return machine
+
+
+def _find_external_skill_yaml(
+    skill_name: str, namespace: str | None
+) -> Path | None:
+    """Search ~/.claude/plugins/** for skills/<name>/skill.yaml.
+
+    Prefers matches whose full path contains the namespace hint — this
+    lets an invocation like Skill(claude-dev-pipeline:solve-issue) find
+    the skill inside the claude-dev-pipeline plugin directory even if
+    other plugins happen to ship a skill with the same bare name.
+    """
+    home_plugins = Path.home() / ".claude" / "plugins"
+    if not home_plugins.exists():
+        return None
+
+    pattern = f"skills/{skill_name}/skill.yaml"
+    candidates = list(home_plugins.rglob(pattern))
+    if not candidates:
+        return None
+
+    if namespace:
+        for c in candidates:
+            if namespace in str(c):
+                return c
+
+    return candidates[0]
+
+
+def _guess_plugin_root_from_skill_path(skill_yaml_path: Path) -> Path:
+    """Given a skills/<name>/skill.yaml path, walk up to find the
+    plugin root — the ancestor directory that contains .claude-plugin/
+    or looks like a plugin (has both skills/ and hooks/).
+    """
+    for ancestor in skill_yaml_path.parents:
+        if (ancestor / ".claude-plugin").exists():
+            return ancestor
+        if (ancestor / "skills").is_dir() and (ancestor / "hooks").is_dir():
+            return ancestor
+    # Fallback: /<root>/skills/<name>/skill.yaml → /<root>
+    return skill_yaml_path.parent.parent.parent
 
 
 def load_adapted_skill(
@@ -428,18 +512,31 @@ def pick_next_state(
 
 
 def validate_state_output(
-    state_def: dict, output_path: Path, plugin_root: Path
+    state_def: dict,
+    output_path: Path,
+    plugin_root: Path,
+    machine: dict | None = None,
 ) -> list[str]:
     """Validate a state's output YAML against its declared schema.
 
     Returns a list of error messages (empty if valid or no schema declared).
     Errors are shaped the same as gate_failures so the caller can treat them
     uniformly: retry the state with the error message as context.
+
+    When the machine was loaded from an external plugin (cross-plugin
+    execution), `machine["_origin_plugin_root"]` points at the plugin
+    directory that owns the skill file. Relative `output_schema` paths
+    are resolved against that root, not atomic-gates' own plugin_root.
     """
     schema_rel = state_def.get("output_schema")
     if not schema_rel:
         return []
-    schema_path = (plugin_root / schema_rel).resolve()
+    origin_root = plugin_root
+    if machine is not None:
+        raw_origin = machine.get("_origin_plugin_root")
+        if raw_origin:
+            origin_root = Path(raw_origin)
+    schema_path = (origin_root / schema_rel).resolve()
     if not schema_path.exists():
         return [f"declared output_schema not found: {schema_rel}"]
     try:
@@ -585,7 +682,7 @@ def handle_existing_run(
             )
 
         schema_errors = validate_state_output(
-            state_def, out_path, plugin_root
+            state_def, out_path, plugin_root, machine
         )
         if schema_errors:
             context = build_state_context(run, machine, project_dir)
@@ -654,11 +751,13 @@ def main() -> None:
         plugin_root = Path(os.environ.get("CLAUDE_PLUGIN_ROOT") or _LIB_DIR.parent)
         project_dir = Path(os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd())
 
-        # 1. Prefer a native skill.yaml under this plugin.
-        machine = load_skill_machine(plugin_root, skill_name)
+        # 1. Prefer a native skill.yaml. Searches atomic-gates' own
+        #    skills/ first, then falls back to OTHER installed plugins
+        #    under ~/.claude/plugins/** when a namespace is given.
+        machine = load_skill_machine(plugin_root, skill_name, namespace)
 
         # 2. Fall back to adapting an external plugin's SKILL.md
-        #    (e.g. superpowers) as a single-state run with audit trail.
+        #    (e.g. superpowers prose skills) as a single-state run.
         if machine is None:
             machine = load_adapted_skill(skill_name, namespace)
 
