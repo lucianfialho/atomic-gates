@@ -1,0 +1,115 @@
+id: review-pr
+version: 1
+description: >
+  Review a PR with categorized findings and produce a structured verdict.
+  Three-state machine: fetch → review → emit_verdict → done. Findings are
+  tagged by domain (backend, frontend, security, qa, ux) and severity so
+  the final verdict has concrete evidence, not hand-waving.
+
+inputs:
+  required:
+    - name: pr_number
+      type: integer
+
+initial_state: fetch
+
+states:
+
+  fetch:
+    description: Fetch PR metadata, files changed, and the full diff
+    agent_prompt: |
+      Use the gh CLI to fetch PR #{{inputs.pr_number}}.
+
+      Required data:
+        - PR title, body, base branch, author
+        - List of files changed with added/removed line counts
+        - Full diff
+
+      Commands to run:
+        gh pr view {{inputs.pr_number}} --json title,body,baseRefName,author,files
+        gh pr diff {{inputs.pr_number}}
+
+      Emit YAML at {{output_path}} with this shape:
+        pr:
+          number: integer
+          title: string
+          body: string
+          base: string
+          author: string
+          files_changed:
+            - path: string
+              additions: integer
+              deletions: integer
+        diff: string
+    output_schema: skills/review-pr/schemas/fetch.output.schema.json
+    transitions:
+      - to: review
+
+  review:
+    description: Produce categorized findings across all applicable domains
+    agent_prompt: |
+      You have the PR context available at {{outputs.fetch}}.
+
+      Review the diff and emit findings categorized by domain and severity.
+      Only report findings you can back with a concrete file:line citation.
+      Do not invent issues — empty lists are a valid answer.
+
+      Emit YAML at {{output_path}} with this shape:
+        findings:
+          - id: finding-1
+            domain: backend | frontend | security | qa | ux | general
+            severity: critical | warning | suggestion
+            file: path/to/file.ext
+            lines: [start, end]
+            title: "short headline"
+            body: |
+              Longer explanation of the issue and the suggested fix.
+          # ... more findings
+        summary:
+          total: integer
+          by_severity:
+            critical: integer
+            warning: integer
+            suggestion: integer
+          by_domain:
+            backend: integer
+            frontend: integer
+            security: integer
+            qa: integer
+            ux: integer
+            general: integer
+
+      Rules:
+        - A finding without file:line is invalid. Omit it.
+        - `critical` = correctness, security, or production blocker.
+        - `warning` = quality issue, performance risk, maintainability concern.
+        - `suggestion` = stylistic, optional, nice-to-have.
+        - `general` domain is for cross-cutting findings that don't fit elsewhere.
+    transitions:
+      - to: emit_verdict
+
+  emit_verdict:
+    description: Aggregate findings into a final verdict
+    agent_prompt: |
+      Read the findings from {{output.findings}} and {{output.summary}}.
+
+      Produce the final verdict at {{output_path}}:
+        verdict: APPROVE | REQUEST_CHANGES | COMMENT
+        rationale: "one-sentence justification tied to the findings"
+        blocking_findings: [finding-id, ...]   # critical findings that must be fixed
+        summary:
+          critical: integer
+          warning: integer
+          suggestion: integer
+
+      Rules:
+        - APPROVE only if there are zero `critical` findings AND zero `warning` findings.
+        - REQUEST_CHANGES if there is at least one `critical` finding.
+        - COMMENT if there are only `warning` or `suggestion` findings (non-blocking but worth noting).
+        - `blocking_findings` must list every critical finding by id.
+    transitions:
+      - to: done
+
+  done:
+    terminal: true
+    description: Machine finished — final verdict is in emit_verdict.output.yaml
