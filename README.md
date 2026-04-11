@@ -15,6 +15,12 @@ validation.
 `atomic-gates` is a direct implementation of that thesis at the plugin
 runtime level.
 
+> ⚠️ **Status: experimental.** This is an exploratory implementation
+> of the thesis. It runs end-to-end in the scenario I dogfooded
+> ([full walk-through with real run-state files](./docs/dogfood/solve-issue-run.md)),
+> but it's not production-grade and the API will change. Feedback
+> welcome, expectations calibrated.
+
 > **New here?** → [Get started in 5 minutes](./docs/guides/getting-started.md)
 > &nbsp;·&nbsp; [Using with `superpowers`](./docs/guides/using-with-superpowers.md)
 > &nbsp;·&nbsp; [Author a gate](./docs/guides/authoring-atomic-gates.md)
@@ -142,6 +148,27 @@ state-machine skill corpus, install
 alongside — it ships 15 skills (`solve-issue`, `review-pr`,
 `validate-issue`, specialists, review passes) consumed by this runtime
 via cross-plugin discovery.
+
+---
+
+## End-to-end dogfood
+
+Rather than describe what the runtime does, here's a real execution:
+[`docs/dogfood/solve-issue-run.md`](./docs/dogfood/solve-issue-run.md).
+
+It's a verified walk-through of `claude-dev-pipeline:solve-issue`
+resolving a simulated issue end-to-end. Five states in the parent,
+three in the sub, one delegation boundary, schema-validated output at
+every transition. Every YAML file in
+[`docs/dogfood/solve-issue-run/`](./docs/dogfood/solve-issue-run/) is
+a direct copy of what the runner wrote to disk during the run —
+nothing reconstructed, nothing staged for the docs.
+
+If you want to see atomic-gates doing what the pitch says, read that
+first. The parent's history ends with a `sub_run_id` pointing at the
+sub-run; the sub ends with `parent_run_id` / `parent_state` /
+`parent_skill_id` linking back. The delegation is bidirectionally
+auditable.
 
 ---
 

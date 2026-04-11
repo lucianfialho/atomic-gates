@@ -1,0 +1,9 @@
+plan:
+  files_to_change:
+    - app/api/logout/route.ts
+    - lib/auth/session.ts
+  new_behavior: "POST /api/logout reads the session cookie, calls deleteRefreshToken(sessionId) to invalidate the server-side refresh token, clears the session cookie via Set-Cookie: session=; Max-Age=0, and returns 204 No Content."
+  tests_needed:
+    - "POST /api/logout returns 204 when a valid session cookie is present"
+    - "The response includes Set-Cookie clearing the session cookie"
+    - "The refresh token is deleted server-side after logout"

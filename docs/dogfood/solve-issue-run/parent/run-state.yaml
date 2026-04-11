@@ -1,0 +1,28 @@
+run_id: a7e545389c54
+skill_id: claude-dev-pipeline:solve-issue
+status: terminal
+current_state: done
+inputs:
+  issue_number: 42
+created_at: '2026-04-11T19:36:16.263908+00:00'
+updated_at: '2026-04-11T19:37:26.951003+00:00'
+history:
+- state: fetch_issue
+  entered_at: '2026-04-11T19:36:16.264094+00:00'
+  exited_at: '2026-04-11T19:36:43.325293+00:00'
+  output_path: <project_dir>/.gates/runs/a7e545389c54/fetch_issue.output.yaml
+- state: classify
+  entered_at: '2026-04-11T19:36:43.325453+00:00'
+  exited_at: '2026-04-11T19:36:51.744053+00:00'
+  output_path: <project_dir>/.gates/runs/a7e545389c54/classify.output.yaml
+- state: delegate_backend
+  entered_at: '2026-04-11T19:36:51.744212+00:00'
+  sub_run_id: 1d2c20db5c6c
+  exited_at: '2026-04-11T19:37:19.251801+00:00'
+  output_path: <project_dir>/.gates/runs/a7e545389c54/delegate_backend.output.yaml
+- state: review
+  entered_at: '2026-04-11T19:37:19.251965+00:00'
+  exited_at: '2026-04-11T19:37:26.950793+00:00'
+  output_path: <project_dir>/.gates/runs/a7e545389c54/review.output.yaml
+- state: done
+  entered_at: '2026-04-11T19:37:26.950999+00:00'

@@ -1,0 +1,2 @@
+specialist: backend
+reasoning: "The issue requires POST /api/logout with session cookie clearing and server-side refresh token invalidation — entirely server-side work."

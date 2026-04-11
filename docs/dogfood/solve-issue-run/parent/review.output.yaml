@@ -1,0 +1,2 @@
+verdict: APPROVE
+summary: "Implementation addresses issue 42 end-to-end — POST /api/logout clears cookie, invalidates refresh token server-side, returns 204, and all three tests pass."

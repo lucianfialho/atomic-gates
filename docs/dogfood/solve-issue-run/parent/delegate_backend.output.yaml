@@ -1,0 +1,12 @@
+implementation:
+  summary: 'Added POST /api/logout that reads the session cookie, calls deleteRefreshToken(sessionId)
+    to invalidate the server-side token, clears the session cookie via Set-Cookie:
+    session=; Max-Age=0, and returns 204 No Content. All three new tests pass.'
+  files_touched:
+  - app/api/logout/route.ts
+  - lib/auth/session.ts
+  - tests/api/logout.test.ts
+  tests_run: pnpm test -- api/logout
+  tests_passed: true
+  notes: Did not touch any frontend — this is purely backend. Frontend logout button
+    is tracked in a separate issue.

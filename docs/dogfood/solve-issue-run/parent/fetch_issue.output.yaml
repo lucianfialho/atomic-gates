@@ -1,0 +1,13 @@
+issue:
+  number: 42
+  title: "Add /api/logout endpoint that clears the session cookie"
+  body: |
+    Users need a logout endpoint. Requirements:
+    - POST /api/logout
+    - Clear the session cookie on success
+    - Return 204 No Content
+  labels:
+    - backend
+    - auth
+  comments:
+    - "Remember to invalidate the refresh token server-side too"
