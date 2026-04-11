@@ -35,6 +35,25 @@
           "tags": { "type": "array", "items": { "type": "string" } }
         }
       }
+    },
+    "pr_structure": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Structure enforced on PR bodies by gate-pr-structure. If omitted, the gate is inactive.",
+      "required": ["required_sections"],
+      "properties": {
+        "required_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Markdown headings that must appear in the PR body (e.g. '## Summary', '## Test plan')."
+        },
+        "min_body_length": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Minimum length in characters for the PR body. Default 0 (no minimum)."
+        }
+      }
     }
   }
 }
