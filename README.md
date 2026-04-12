@@ -136,6 +136,7 @@ that **at the runtime level**, not the prompt level.
 
 - State-machine runner (`PreToolUse: Skill` hook, Python)
 - Cross-plugin skill discovery — runs `skill.yaml` from ANY installed plugin
+- Project scanner + config generator (`lib/init.py`) — detects stack, suggests indexed dirs
 - Offline SKILL.md → skill.yaml converter (`lib/import_skill.py`)
 - Self-contained JSON Schema subset validator (only runtime dep is `pyyaml`)
 - Schemas for config, skill machines, run state, metadata summaries
@@ -221,9 +222,27 @@ project, watches a `git commit` get blocked, and unblocks it.
 
 ## Adopt it in a project
 
-### 1. Declare what's indexed
+### 1. Scan and generate config
 
-Create `.gates/config.yaml` in your project root:
+Run the init scanner on your project:
+
+```bash
+# Report mode — see what the scanner finds
+python3 lib/init.py /path/to/project
+
+# Auto mode — generate .gates/config.yaml from scan results
+python3 lib/init.py --auto /path/to/project
+
+# Pick specific directories only
+python3 lib/init.py --auto --candidates 'src/components,src/api' /path/to/project
+```
+
+The scanner detects your stack (Node, Python, Rust, …), identifies
+candidate directories by name patterns and file extensions, assigns
+specialists (`frontend`, `backend`, `database`, `infra`, `test`), and
+writes a `.gates/config.yaml` ready to use.
+
+Or create it manually:
 
 ```yaml
 version: 1
@@ -305,22 +324,28 @@ instructions until the machine reaches `done`. The final verdict is in
 
 ```
 atomic-gates/
-├── hooks/hooks.json          PreToolUse: Bash → gate-metadata.py
+├── hooks/hooks.json          PreToolUse: Bash → gate_metadata, gate_pr_structure
 │                             PreToolUse: Skill → runner.py
+│                             PreToolUse: Edit|Write → gate_role
 ├── lib/
 │   ├── runner.py             state-machine arbiter
-│   ├── gate_metadata.py      the commit gate
+│   ├── gate_metadata.py      commit gate — blocks without .metadata/summary.yaml
+│   ├── gate_pr_structure.py  PR gate — blocks without required sections
+│   ├── gate_role.py          role gate — blocks edits outside specialist scope
+│   ├── init.py               project scanner + config generator
+│   ├── import_skill.py       SKILL.md → skill.yaml converter
 │   └── schema_validate.py    self-contained JSON Schema subset
 ├── schemas/                  JSON Schemas for config, machines, runs, metadata
 ├── templates/                stub files for lazy bootstrap
-├── scripts/
-│   ├── dev-sync.sh           mirror checkout → Claude Code install paths
-│   └── check-tests.sh        legacy quality gate (Stop hook)
-└── skills/<name>/
-    ├── skill.yaml            the state machine
-    ├── SKILL.md              minimal runner-facing instructions
-    └── schemas/              per-state output schemas
+└── scripts/
+    ├── dev-sync.sh           mirror checkout → Claude Code install paths
+    ├── check-tests.sh        legacy quality gate (Stop hook)
+    └── check-build.sh        legacy build check (TaskCompleted hook)
 ```
+
+Skills don't live here — they belong in external plugins (like
+[`claude-dev-pipeline`](https://github.com/lucianfialho/claude-dev-pipeline))
+which the runner discovers via cross-plugin search.
 
 **Guides (start here):**
 

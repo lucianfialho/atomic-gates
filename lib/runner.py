@@ -308,6 +308,7 @@ def load_adapted_skill(
         "id": display_id,
         "version": 1,
         "description": f"Adapted from {md_path}",
+        "_adapted": True,
         "initial_state": "execute",
         "states": {
             "execute": {
@@ -767,6 +768,7 @@ def format_context_message(
     state_name: str,
     prompt: str,
     gate_failures: list[str] | None = None,
+    skip_advance_hint: bool = False,
 ) -> str:
     lines = [
         f"gates runner — skill={machine['id']} run_id={run['run_id']}",
@@ -780,11 +782,12 @@ def format_context_message(
     lines.append("")
     lines.append("TASK:")
     lines.append(prompt.strip())
-    lines.append("")
-    lines.append(
-        f"When finished, invoke Skill({machine['id']}, {{ run_id: '{run['run_id']}' }}) "
-        "to advance the machine."
-    )
+    if not skip_advance_hint:
+        lines.append("")
+        lines.append(
+            f"When finished, invoke Skill({machine['id']}, {{ run_id: '{run['run_id']}' }}) "
+            "to advance the machine."
+        )
     return "\n".join(lines)
 
 
@@ -1166,6 +1169,25 @@ def main() -> None:
 
         run = create_run(project_dir, machine, arguments)
         initial_state_def = machine["states"][run["current_state"]]
+
+        # Adapted skills (SKILL.md wrappers) are one-shot: the agent
+        # gets the prompt but the run is immediately finalized. There
+        # is no second Skill() round-trip to advance to "done", so we
+        # mark it terminal right away to avoid orphaned running runs.
+        if machine.get("_adapted"):
+            run["history"][0]["exited_at"] = _now()
+            run["history"].append({"state": "done", "entered_at": _now()})
+            run["current_state"] = "done"
+            run["status"] = "terminal"
+            save_run(project_dir, run)
+            context = build_state_context(run, machine, project_dir)
+            prompt = state_prompt(machine, "execute", context)
+            message = format_context_message(
+                run, machine, "done", prompt,
+                skip_advance_hint=True,
+            )
+            _emit(message)
+            return
 
         # If the initial state is a delegate, route through the delegate
         # handler so it creates the sub-run on first invocation instead
