@@ -257,6 +257,53 @@ instructions until the machine reaches `done`. The final verdict is in
 ## Architecture
 
 ```
+┌─────────────────────────────────────────────────────────┐
+│              Claude Code Runtime (Host)                  │
+│         (PreToolUse · Stop · TaskCompleted)              │
+└──────────────────────────┬──────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────┐
+│                   hooks/hooks.json                       │
+│              (Matcher → Gate Dispatch)                    │
+└─────────┬──────────────┬──────────────┬─────────────────┘
+          │              │              │
+   ┌──────┘              │              └──────┐
+   ▼                     ▼                     ▼
+┌────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│  Bash      │  │  Skill          │  │  Edit | Write   │
+│  Matcher   │  │  Matcher        │  │  Matcher        │
+└─────┬──────┘  └───────┬─────────┘  └───────┬─────────┘
+      │                 │                     │
+      ▼                 ▼                     ▼
+┌────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│ gate_      │  │    runner.py    │  │   gate_role.py  │
+│ metadata   │  │  (State-Machine │  │  (Specialist    │
+│ gate_pr    │  │   Arbiter)      │  │   Scope Check)  │
+│ _structure │  │                 │  │                 │
+└────────────┘  └───────┬─────────┘  └─────────────────┘
+                        │
+           ┌────────────┼────────────┐
+           ▼            ▼            ▼
+┌────────────┐ ┌──────────────┐ ┌──────────────────────┐
+│  Cross-    │ │  Schema      │ │  Template            │
+│  Plugin    │ │  Validator   │ │  Bootstrap           │
+│  Discovery │ │  (validate.  │ │  (Stub Gen)          │
+│  (skill.   │ │   py)        │ │                      │
+│   yaml)    │ └──────────────┘ └──────────────────────┘
+└────────────┘
+      │
+      ▼
+┌─────────────────────────────────────────────────────────┐
+│            Persistence (.gates/ + .metadata/)            │
+│   config.yaml · runs/<id>.yaml · <state>.output.yaml    │
+│       .metadata/summary.yaml · skill.yaml (YAML SM)     │
+└─────────────────────────────────────────────────────────┘
+```
+
+### File layout
+
+```
 atomic-gates/
 ├── hooks/hooks.json          PreToolUse: Bash → gate-metadata.py
 │                             PreToolUse: Skill → runner.py
