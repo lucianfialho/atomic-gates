@@ -1,0 +1,111 @@
+{
+  "total_runs": 31,
+  "terminal": 27,
+  "running": 4,
+  "error": 0,
+  "gate_failures_total": 0,
+  "stuck_runs": [
+    {
+      "run_id": "3d0b0ca5b143",
+      "skill_id": "claude-dev-pipeline:check-security",
+      "project": "analytics-copilot",
+      "stuck_for_hours": 64.2,
+      "current_state": "usage"
+    },
+    {
+      "run_id": "4aa35505bf4b",
+      "skill_id": "claude-dev-pipeline:solve-issue",
+      "project": "analytics-copilot",
+      "stuck_for_hours": 82.4,
+      "current_state": "fetch_issue"
+    },
+    {
+      "run_id": "b839c9204006",
+      "skill_id": "superpowers:brainstorming",
+      "project": "analytics-copilot",
+      "stuck_for_hours": 90.5,
+      "current_state": "execute"
+    },
+    {
+      "run_id": "b09c71c99b28",
+      "skill_id": "claude-dev-pipeline:validate-issue",
+      "project": "gmp-cli",
+      "stuck_for_hours": 91.5,
+      "current_state": "fetch"
+    }
+  ],
+  "skills": {
+    "claude-dev-pipeline:solve-issue": 13,
+    "claude-dev-pipeline:backend-dev": 11,
+    "claude-dev-pipeline:validate-issue": 2,
+    "claude-dev-pipeline:review-pr": 2,
+    "claude-dev-pipeline:check-security": 1,
+    "superpowers:brainstorming": 1,
+    "claude-dev-pipeline:frontend-dev": 1
+  },
+  "statuses": {
+    "terminal": 27,
+    "running": 4
+  },
+  "verdicts": {
+    "H1": {
+      "verdict": "killed",
+      "observed": "0 gate_failures across 27 terminal runs (rate=0.000)",
+      "threshold": ">= 0.1 failures per terminal run"
+    },
+    "H2": {
+      "verdict": "surviving",
+      "observed": "4/31 runs stuck >24h (12.9%)",
+      "threshold": "<= 15%",
+      "stuck_detail": [
+        {
+          "run_id": "3d0b0ca5b143",
+          "skill_id": "claude-dev-pipeline:check-security",
+          "project": "analytics-copilot",
+          "stuck_for_hours": 64.2,
+          "current_state": "usage"
+        },
+        {
+          "run_id": "4aa35505bf4b",
+          "skill_id": "claude-dev-pipeline:solve-issue",
+          "project": "analytics-copilot",
+          "stuck_for_hours": 82.4,
+          "current_state": "fetch_issue"
+        },
+        {
+          "run_id": "b839c9204006",
+          "skill_id": "superpowers:brainstorming",
+          "project": "analytics-copilot",
+          "stuck_for_hours": 90.5,
+          "current_state": "execute"
+        },
+        {
+          "run_id": "b09c71c99b28",
+          "skill_id": "claude-dev-pipeline:validate-issue",
+          "project": "gmp-cli",
+          "stuck_for_hours": 91.5,
+          "current_state": "fetch"
+        }
+      ]
+    },
+    "H3": {
+      "verdict": "killed",
+      "observed": "2 validate-issue vs 13 solve-issue (ratio=0.15)",
+      "threshold": ">= 0.2"
+    },
+    "H4": {
+      "verdict": "killed",
+      "observed": "1 runs stuck on meta-section states",
+      "threshold": "= 0",
+      "trap_runs": [
+        {
+          "run_id": "3d0b0ca5b143",
+          "skill_id": "claude-dev-pipeline:check-security",
+          "project": "analytics-copilot",
+          "stuck_for_hours": 64.2,
+          "current_state": "usage"
+        }
+      ]
+    }
+  }
+}
