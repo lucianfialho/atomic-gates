@@ -24,7 +24,11 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 _CACHE_BASE="$HOME/.claude/plugins/cache/atomic-gates/atomic-gates"
 CACHE_ROOT=""
 if [[ -d "$_CACHE_BASE" ]]; then
-  _VER="$(ls -1 "$_CACHE_BASE" 2>/dev/null | sort -V | tail -n1)"
+  # Match strict semver only (X.Y.Z) so rollback backups like
+  # "0.5.0.pre-symlink.1234567890" don't shadow the active version.
+  _VER="$(ls -1 "$_CACHE_BASE" 2>/dev/null \
+    | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' \
+    | sort -V | tail -n1)"
   if [[ -n "$_VER" ]]; then
     CACHE_ROOT="$_CACHE_BASE/$_VER"
   fi
