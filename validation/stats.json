@@ -9,28 +9,28 @@
       "run_id": "3d0b0ca5b143",
       "skill_id": "claude-dev-pipeline:check-security",
       "project": "analytics-copilot",
-      "stuck_for_hours": 64.2,
+      "stuck_for_hours": 64.7,
       "current_state": "usage"
     },
     {
       "run_id": "4aa35505bf4b",
       "skill_id": "claude-dev-pipeline:solve-issue",
       "project": "analytics-copilot",
-      "stuck_for_hours": 82.4,
+      "stuck_for_hours": 82.9,
       "current_state": "fetch_issue"
     },
     {
       "run_id": "b839c9204006",
       "skill_id": "superpowers:brainstorming",
       "project": "analytics-copilot",
-      "stuck_for_hours": 90.5,
+      "stuck_for_hours": 91.0,
       "current_state": "execute"
     },
     {
       "run_id": "b09c71c99b28",
       "skill_id": "claude-dev-pipeline:validate-issue",
       "project": "gmp-cli",
-      "stuck_for_hours": 91.5,
+      "stuck_for_hours": 92.0,
       "current_state": "fetch"
     }
   ],
@@ -49,9 +49,8 @@
   },
   "verdicts": {
     "H1": {
-      "verdict": "killed",
-      "observed": "0 gate_failures across 27 terminal runs (rate=0.000)",
-      "threshold": ">= 0.1 failures per terminal run"
+      "verdict": "inconclusive",
+      "reason": "instrument blind \u2014 no run in this corpus has ever recorded history[].gate_failures. Runner pre-fix (issue #24) never persisted the field. Re-run after collecting runs on the patched runner before interpreting a rate of 0."
     },
     "H2": {
       "verdict": "surviving",
@@ -62,28 +61,28 @@
           "run_id": "3d0b0ca5b143",
           "skill_id": "claude-dev-pipeline:check-security",
           "project": "analytics-copilot",
-          "stuck_for_hours": 64.2,
+          "stuck_for_hours": 64.7,
           "current_state": "usage"
         },
         {
           "run_id": "4aa35505bf4b",
           "skill_id": "claude-dev-pipeline:solve-issue",
           "project": "analytics-copilot",
-          "stuck_for_hours": 82.4,
+          "stuck_for_hours": 82.9,
           "current_state": "fetch_issue"
         },
         {
           "run_id": "b839c9204006",
           "skill_id": "superpowers:brainstorming",
           "project": "analytics-copilot",
-          "stuck_for_hours": 90.5,
+          "stuck_for_hours": 91.0,
           "current_state": "execute"
         },
         {
           "run_id": "b09c71c99b28",
           "skill_id": "claude-dev-pipeline:validate-issue",
           "project": "gmp-cli",
-          "stuck_for_hours": 91.5,
+          "stuck_for_hours": 92.0,
           "current_state": "fetch"
         }
       ]
@@ -102,7 +101,7 @@
           "run_id": "3d0b0ca5b143",
           "skill_id": "claude-dev-pipeline:check-security",
           "project": "analytics-copilot",
-          "stuck_for_hours": 64.2,
+          "stuck_for_hours": 64.7,
           "current_state": "usage"
         }
       ]

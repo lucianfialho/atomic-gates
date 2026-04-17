@@ -1,6 +1,6 @@
 # atomic-gates — validation ledger
 
-_Generated: 2026-04-17T10:20:24.212388+00:00_  
+_Generated: 2026-04-17T10:50:39.344350+00:00_  
 _Projects scanned: analytics-copilot, gmp-cli_  
 _Protocol: `validation/hypotheses.yaml`_
 
@@ -25,20 +25,19 @@ _Protocol: `validation/hypotheses.yaml`_
 
 ## Verdicts
 
-### H1 — 💀 KILLED
+### H1 — ❔ INCONCLUSIVE
 
-- Observed: 0 gate_failures across 27 terminal runs (rate=0.000)
-- Kill threshold: >= 0.1 failures per terminal run
+- Reason: instrument blind — no run in this corpus has ever recorded history[].gate_failures. Runner pre-fix (issue #24) never persisted the field. Re-run after collecting runs on the patched runner before interpreting a rate of 0.
 
 ### H2 — ✅ SURVIVING
 
 - Observed: 4/31 runs stuck >24h (12.9%)
 - Kill threshold: <= 15%
 - Stuck runs:
-  - `3d0b0ca5b143` (claude-dev-pipeline:check-security) stuck 64.2h on `usage`
-  - `4aa35505bf4b` (claude-dev-pipeline:solve-issue) stuck 82.4h on `fetch_issue`
-  - `b839c9204006` (superpowers:brainstorming) stuck 90.5h on `execute`
-  - `b09c71c99b28` (claude-dev-pipeline:validate-issue) stuck 91.5h on `fetch`
+  - `3d0b0ca5b143` (claude-dev-pipeline:check-security) stuck 64.7h on `usage`
+  - `4aa35505bf4b` (claude-dev-pipeline:solve-issue) stuck 82.9h on `fetch_issue`
+  - `b839c9204006` (superpowers:brainstorming) stuck 91.0h on `execute`
+  - `b09c71c99b28` (claude-dev-pipeline:validate-issue) stuck 92.0h on `fetch`
 
 ### H3 — 💀 KILLED
 

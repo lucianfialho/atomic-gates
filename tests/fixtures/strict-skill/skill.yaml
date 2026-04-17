@@ -1,0 +1,14 @@
+id: test-strict-schema
+version: 1
+initial_state: probe
+states:
+  probe:
+    description: Test state with a strict output_schema (verdict enum).
+    agent_prompt: |
+      Produce {verdict: pass | fail} — anything else must fail validation.
+    output_schema: schemas/probe.output.schema.json
+    transitions:
+      - to: done
+  done:
+    description: Terminal.
+    terminal: true

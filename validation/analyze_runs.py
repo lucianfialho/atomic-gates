@@ -52,6 +52,20 @@ def count_gate_failures(runs: list[dict]) -> int:
     return total
 
 
+def field_ever_populated(runs: list[dict], field: str) -> bool:
+    """Does *any* history entry across all runs carry this key?
+
+    Used to distinguish a real "gates never fire" signal from a blind
+    instrument where the runner simply didn't persist the field
+    (issue #24 before fix).
+    """
+    for r in runs:
+        for h in r.get("history", []) or []:
+            if field in h:
+                return True
+    return False
+
+
 def stuck_runs(runs: list[dict], stale_hours: float = 24.0) -> list[dict]:
     now = datetime.now(timezone.utc)
     stuck = []
@@ -106,6 +120,16 @@ def evaluate(runs: list[dict]) -> dict:
     # H1: gates fire >= 1 per 10 terminal runs
     if terminal == 0:
         verdicts["H1"] = {"verdict": "inconclusive", "reason": "no terminal runs yet"}
+    elif not field_ever_populated(runs, "gate_failures"):
+        verdicts["H1"] = {
+            "verdict": "inconclusive",
+            "reason": (
+                "instrument blind — no run in this corpus has ever recorded "
+                "history[].gate_failures. Runner pre-fix (issue #24) never "
+                "persisted the field. Re-run after collecting runs on the "
+                "patched runner before interpreting a rate of 0."
+            ),
+        }
     else:
         rate = gate_fails / terminal
         killed = rate < 0.1

@@ -424,6 +424,21 @@ def save_run(project_dir: Path, run: dict) -> None:
     _write_yaml(run_file(project_dir, run["run_id"]), run)
 
 
+def _record_gate_failures(
+    run: dict, project_dir: Path, failures: list[str]
+) -> None:
+    """Persist a state's gate failures to the current history entry.
+
+    Without this, the retrospective analyzer at validation/analyze_runs.py
+    cannot measure whether gates fire in practice — the field is declared
+    in schemas/run-state.schema.json but was never written by the runner
+    (issue #24).
+    """
+    if run.get("history") and failures:
+        run["history"][-1]["gate_failures"] = list(failures)
+    save_run(project_dir, run)
+
+
 # ---------- template interpolation -------------------------------------------
 
 
@@ -1033,17 +1048,19 @@ def handle_existing_run(
 
     if not skip_output_check:
         if not out_path.exists():
+            failures = [f"output file missing: {out_path}"]
+            _record_gate_failures(run, project_dir, failures)
             context = build_state_context(run, machine, project_dir)
             prompt = state_prompt(machine, current, context)
             return format_context_message(
-                run, machine, current, prompt,
-                gate_failures=[f"output file missing: {out_path}"],
+                run, machine, current, prompt, gate_failures=failures,
             )
 
         schema_errors = validate_state_output(
             state_def, out_path, plugin_root, machine
         )
         if schema_errors:
+            _record_gate_failures(run, project_dir, schema_errors)
             context = build_state_context(run, machine, project_dir)
             prompt = state_prompt(machine, current, context)
             return format_context_message(
@@ -1054,6 +1071,7 @@ def handle_existing_run(
             state_def.get("gate") or [], plugin_root, project_dir, run["run_id"]
         )
         if gate_failures:
+            _record_gate_failures(run, project_dir, gate_failures)
             context = build_state_context(run, machine, project_dir)
             prompt = state_prompt(machine, current, context)
             return format_context_message(
