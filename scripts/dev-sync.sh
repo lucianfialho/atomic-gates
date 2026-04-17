@@ -19,9 +19,17 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Known install paths (the plugin is still named dev-pipeline on disk).
-CACHE_ROOT="$HOME/.claude/plugins/cache/dev-pipeline/dev-pipeline/0.1.0"
-MARKETPLACE_ROOT="$HOME/.claude/plugins/marketplaces/dev-pipeline"
+# Known install paths. Auto-detect the version dir so bumping plugin.json
+# doesn't silently desync the runtime.
+_CACHE_BASE="$HOME/.claude/plugins/cache/atomic-gates/atomic-gates"
+CACHE_ROOT=""
+if [[ -d "$_CACHE_BASE" ]]; then
+  _VER="$(ls -1 "$_CACHE_BASE" 2>/dev/null | sort -V | tail -n1)"
+  if [[ -n "$_VER" ]]; then
+    CACHE_ROOT="$_CACHE_BASE/$_VER"
+  fi
+fi
+MARKETPLACE_ROOT="$HOME/.claude/plugins/marketplaces/atomic-gates"
 
 # Subpaths to mirror. Anything not listed here stays as-is in the destination.
 SYNC_DIRS=(
