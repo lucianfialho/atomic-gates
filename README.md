@@ -1,25 +1,66 @@
 # atomic-gates
 
-**Turn project rules into verifiable artifacts.** A plugin for Claude Code
-that replaces declarative rules ("always run the tests before committing",
-"always update the metadata", "always validate PR coverage") with
-**blocking gates** — hooks that inspect concrete artifacts and refuse to
-let the agent advance unless those artifacts exist and pass schema
-validation.
+**Replayable, auditable multi-agent workflows on Claude Code.**
+Declare your agent pipeline as a YAML state machine; every state output,
+every delegation, every sub-run is persisted to `.gates/runs/<uuid>.yaml` —
+navigable, analyzable, resumable. The same runtime ships three atomic
+`PreToolUse` gates (commit metadata, PR body structure, role scope)
+whose firing behavior is tracked via a local telemetry log.
+
+> **30-second pitch:**
+> Claude Code sessions normally evaporate when a tab closes.
+> atomic-gates turns them into durable state machines. A parent
+> `solve-issue` fires a `backend-dev` sub-run; both persist; an
+> analyzer can tell you which skill ran, where it got stuck, what
+> output each state produced — months later, in 180 lines of Python.
 
 > *Rules are fragile because LLMs rationalize their way around them.
 > Gates are robust because the next action literally cannot happen until
 > the gate condition is met.*
 > — Jesse Vincent, [**Rules and Gates**](https://blog.fsck.com/2026/04/07/rules-and-gates/)
 
-`atomic-gates` is a direct implementation of that thesis at the plugin
-runtime level.
+atomic-gates implements that thesis as a plugin. The enforcement
+claim is held to a high evidentiary bar — see
+[`validation/`](./validation/) for the pre-registered hypotheses and
+the [ledger](./validation/ledger.md) tracking which ones survived
+contact with real data.
 
-> ⚠️ **Status: experimental.** This is an exploratory implementation
-> of the thesis. It runs end-to-end in the scenario I dogfooded
-> ([full walk-through with real run-state files](./docs/dogfood/solve-issue-run.md)),
-> but it's not production-grade and the API will change. Feedback
-> welcome, expectations calibrated.
+> ⚠️ **Status: experimental, honestly measured.** Shipping infra is
+> proven (31 real runs across 2 projects, 87% terminate cleanly,
+> declarative delegation works end-to-end — see
+> [`docs/dogfood/solve-issue-run.md`](./docs/dogfood/solve-issue-run.md)).
+> Enforcement claims ("gates block errors") are currently under
+> instrumentation — see [`validation/ledger.md`](./validation/ledger.md)
+> for open verdicts. API will change; feedback welcome.
+
+---
+
+## What 31 real runs showed
+
+Before believing the pitch, we ran a retrospective analyzer over
+`.gates/runs/` from two real projects. Four hypotheses were
+pre-registered with kill criteria *before* looking at data
+([`validation/hypotheses.yaml`](./validation/hypotheses.yaml)). Three
+out of four killed their marketing version immediately:
+
+| Hypothesis | Verdict | Evidence |
+|---|---|---|
+| H1: machine-level gates fire in practice | ❔ **inconclusive** | instrument was blind — runner never persisted failures (fixed in commit [df07912](../../commit/df07912), issue [#24](../../issues/24)) |
+| H2: runs reach terminal reliably | ✅ **surviving (87%)** | 27/31 terminal, 4 abandoned; GC landed via issue [#26](../../issues/26) |
+| H3: rigor skills are actually used | 💀 **killed** | `validate-issue` ran 2× against 13× `solve-issue` — behavioral, not a bug |
+| H4: skeleton skills don't trap the runner | 💀 **killed** | one run stuck 64h on `usage` state; fixed in commit [658e9ac](../../commit/658e9ac), issue [#25](../../issues/25) |
+
+What the data **did** support, with zero hedging:
+
+- **Declarative delegation works end-to-end.** `solve-issue` → `backend-dev`
+  appeared 11× as proper parent/child sub-runs with bidirectional linking.
+- **Cross-plugin discovery works.** `obra/superpowers:brainstorming`
+  ran through atomic-gates' runner without any config wire-up.
+- **The audit trail is real and queryable.** The retrospective above
+  is a 180-LOC Python script reading nothing but YAML. Try doing that
+  on a raw Claude Code session.
+
+Full ledger, stats, and protocol at [`validation/`](./validation/).
 
 > **New here?** → [Get started in 5 minutes](./docs/guides/getting-started.md)
 > &nbsp;·&nbsp; [Using with `superpowers`](./docs/guides/using-with-superpowers.md)
@@ -126,7 +167,7 @@ that **at the runtime level**, not the prompt level.
 
 ## What ships today
 
-**Atomic gates (blocking hooks):**
+**Atomic gates (blocking hooks — firings logged to `.gates/hook-log.jsonl`):**
 
 - `gate-metadata` — blocks `git commit` without updated `.metadata/summary.yaml`
 - `gate-pr-structure` — blocks `gh pr create` with missing required sections
@@ -138,10 +179,18 @@ that **at the runtime level**, not the prompt level.
 - Cross-plugin skill discovery — runs `skill.yaml` from ANY installed plugin
 - Project scanner + config generator (`lib/init.py`) — detects stack, suggests indexed dirs
 - Offline SKILL.md → skill.yaml converter (`lib/import_skill.py`)
+- Run garbage collector (`lib/gc_runs.py`) — marks stale runs as `abandoned`
 - Self-contained JSON Schema subset validator (only runtime dep is `pyyaml`)
 - Schemas for config, skill machines, run state, metadata summaries
 - Stub templates for lazy bootstrap
 - `scripts/dev-sync.sh` for mirroring the checkout into Claude Code install paths
+
+**Validation tooling (`validation/`):**
+
+- `hypotheses.yaml` — pre-registered, falsifiable claims about atomic-gates itself
+- `analyze_runs.py` — retrospective analyzer over `.gates/runs/` across projects
+- `analyze_hooks.py` — aggregator for `.gates/hook-log.jsonl` (firing/block rates per gate)
+- `ledger.md` — auto-generated verdicts (claim → evidence → verdict)
 
 **No skills.** `atomic-gates` is a pure runtime. For a ready-to-use
 state-machine skill corpus, install

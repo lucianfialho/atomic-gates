@@ -5,16 +5,22 @@ development. It's a condensed orientation to the codebase. For the user-
 facing pitch, see [`README.md`](./README.md). For the technical reference,
 see [`docs/atomic-gates.md`](./docs/atomic-gates.md).
 
-## What this plugin is
+## What this plugin actually is (30-second pitch, grounded in data)
 
-`atomic-gates` turns declarative rules ("always run tests", "always update
-.metadata/", "always validate PR coverage") into **blocking gates** —
-hooks that refuse to let the agent advance unless a concrete artifact
-exists and passes schema validation.
+A runtime for **replayable multi-agent workflows on Claude Code**.
+Declare the pipeline as a YAML state machine; every state output,
+delegation and sub-run persists to `.gates/runs/<uuid>.yaml`, months-later
+auditable with stdlib Python. Validated in practice: 31 real runs
+across 2 projects, 87% terminate cleanly, cross-plugin delegation
+works.
 
-Implementation of Jesse Vincent's *Rules and Gates* thesis
-(https://blog.fsck.com/2026/04/07/rules-and-gates/) at the Claude Code
-plugin runtime level.
+atomic-gates is inspired by Jesse Vincent's *Rules and Gates* thesis
+(https://blog.fsck.com/2026/04/07/rules-and-gates/). The enforcement
+side (three `PreToolUse` gates: commit metadata / PR body / role
+scope) is now telemetered via `.gates/hook-log.jsonl` so we can ask
+the honest question — "do they fire?" — with evidence instead of
+vibes. See [`validation/`](./validation/) for the pre-registered
+hypothesis ledger.
 
 ## Two layers of gates
 
