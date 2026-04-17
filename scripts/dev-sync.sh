@@ -53,6 +53,10 @@ sync_tree() {
     echo "[dev-sync] skip: $dest (destination does not exist — install the plugin first)"
     return
   fi
+  if [[ -L "$dest" ]]; then
+    echo "[dev-sync] skip: $dest (symlink → $(readlink "$dest") — edits are live, no sync needed)"
+    return
+  fi
 
   echo "[dev-sync] syncing → $dest"
   for sub in "${SYNC_DIRS[@]}"; do
