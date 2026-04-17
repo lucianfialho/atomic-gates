@@ -107,6 +107,7 @@ def evaluate(runs: list[dict]) -> dict:
     terminal = sum(1 for r in runs if r.get("status") == "terminal")
     running = sum(1 for r in runs if r.get("status") == "running")
     error = sum(1 for r in runs if r.get("status") == "error")
+    abandoned = sum(1 for r in runs if r.get("status") == "abandoned")
     total = len(runs)
     gate_fails = count_gate_failures(runs)
     stuck = stuck_runs(runs)
@@ -139,15 +140,18 @@ def evaluate(runs: list[dict]) -> dict:
             "threshold": ">= 0.1 failures per terminal run",
         }
 
-    # H2: <15% stuck
+    # H2: <15% stuck-or-abandoned (abandoned runs were once stuck; GC
+    # doesn't erase the incompletion evidence).
     if total == 0:
         verdicts["H2"] = {"verdict": "inconclusive", "reason": "no runs"}
     else:
-        stuck_pct = len(stuck) / total
-        killed = stuck_pct > 0.15
+        incomplete = len(stuck) + abandoned
+        pct = incomplete / total
+        killed = pct > 0.15
         verdicts["H2"] = {
             "verdict": "killed" if killed else "surviving",
-            "observed": f"{len(stuck)}/{total} runs stuck >24h ({stuck_pct:.1%})",
+            "observed": f"{len(stuck)} stuck + {abandoned} abandoned of {total} "
+                        f"runs ({pct:.1%})",
             "threshold": "<= 15%",
             "stuck_detail": stuck,
         }
@@ -183,6 +187,7 @@ def evaluate(runs: list[dict]) -> dict:
         "terminal": terminal,
         "running": running,
         "error": error,
+        "abandoned": abandoned,
         "gate_failures_total": gate_fails,
         "stuck_runs": stuck,
         "skills": skills,
@@ -202,7 +207,7 @@ def render_markdown(stats: dict, projects: list[str]) -> str:
     lines.append("## Summary")
     lines.append("")
     lines.append(f"- Total runs: **{stats['total_runs']}**")
-    lines.append(f"- Terminal: {stats['terminal']}  ·  Running: {stats['running']}  ·  Error: {stats['error']}")
+    lines.append(f"- Terminal: {stats['terminal']}  ·  Running: {stats['running']}  ·  Error: {stats['error']}  ·  Abandoned: {stats.get('abandoned', 0)}")
     lines.append(f"- Gate failures across all history: **{stats['gate_failures_total']}**")
     lines.append(f"- Stuck runs (>24h in `running`): **{len(stats['stuck_runs'])}**")
     lines.append("")

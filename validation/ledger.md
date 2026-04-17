@@ -1,13 +1,13 @@
 # atomic-gates — validation ledger
 
-_Generated: 2026-04-17T10:50:39.344350+00:00_  
+_Generated: 2026-04-17T11:00:59.890043+00:00_  
 _Projects scanned: analytics-copilot, gmp-cli_  
 _Protocol: `validation/hypotheses.yaml`_
 
 ## Summary
 
 - Total runs: **31**
-- Terminal: 27  ·  Running: 4  ·  Error: 0
+- Terminal: 27  ·  Running: 4  ·  Error: 0  ·  Abandoned: 0
 - Gate failures across all history: **0**
 - Stuck runs (>24h in `running`): **4**
 
@@ -31,13 +31,13 @@ _Protocol: `validation/hypotheses.yaml`_
 
 ### H2 — ✅ SURVIVING
 
-- Observed: 4/31 runs stuck >24h (12.9%)
+- Observed: 4 stuck + 0 abandoned of 31 runs (12.9%)
 - Kill threshold: <= 15%
 - Stuck runs:
-  - `3d0b0ca5b143` (claude-dev-pipeline:check-security) stuck 64.7h on `usage`
-  - `4aa35505bf4b` (claude-dev-pipeline:solve-issue) stuck 82.9h on `fetch_issue`
-  - `b839c9204006` (superpowers:brainstorming) stuck 91.0h on `execute`
-  - `b09c71c99b28` (claude-dev-pipeline:validate-issue) stuck 92.0h on `fetch`
+  - `3d0b0ca5b143` (claude-dev-pipeline:check-security) stuck 64.8h on `usage`
+  - `4aa35505bf4b` (claude-dev-pipeline:solve-issue) stuck 83.1h on `fetch_issue`
+  - `b839c9204006` (superpowers:brainstorming) stuck 91.1h on `execute`
+  - `b09c71c99b28` (claude-dev-pipeline:validate-issue) stuck 92.1h on `fetch`
 
 ### H3 — 💀 KILLED
 
