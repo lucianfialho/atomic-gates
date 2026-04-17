@@ -1,0 +1,15 @@
+id: test-skeleton
+version: 1
+description: Reproduces issue #25 — skeleton skill with no output_schema and no gate.
+initial_state: usage
+states:
+  usage:
+    description: Usage section — documentation, not a fase.
+    agent_prompt: |
+      Converter copied verbatim from SKILL.md.
+      /example — run the thing.
+    transitions:
+      - to: done
+  done:
+    description: Terminal.
+    terminal: true

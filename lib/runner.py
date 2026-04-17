@@ -1044,6 +1044,12 @@ def handle_existing_run(
         )
 
     skip_output_check = state_def.get("skip_output_check", False)
+    # Skeleton-style states (import_skill.py output from meta headings like
+    # Usage / Overview) have transitions but no output_schema and no gate.
+    # There is nothing to validate against — forcing them to wait for an
+    # output file traps the run forever (issue #25).
+    if not state_def.get("output_schema") and not state_def.get("gate"):
+        skip_output_check = True
     out_path = run_output_path(project_dir, run["run_id"], current)
 
     if not skip_output_check:
