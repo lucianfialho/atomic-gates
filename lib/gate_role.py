@@ -43,13 +43,20 @@ _LIB_DIR = Path(__file__).resolve().parent
 if str(_LIB_DIR) not in sys.path:
     sys.path.insert(0, str(_LIB_DIR))
 
+from gate_log import log_decision  # noqa: E402
+
+_GATE_NAME = "role"
+_TOOL_NAME = ""
+
 
 def _noop(reason: str) -> None:
+    log_decision(_GATE_NAME, _TOOL_NAME, "allow", reason)
     print(f"[gate-role] noop: {reason}", file=sys.stderr)
     sys.exit(0)
 
 
 def _block(message: str) -> None:
+    log_decision(_GATE_NAME, _TOOL_NAME, "block", message.splitlines()[0] if message else "")
     sys.stderr.write(message.rstrip() + "\n")
     sys.exit(2)
 
@@ -111,8 +118,10 @@ def find_owning_directory(
 
 
 def main() -> None:
+    global _TOOL_NAME
     hook = read_stdin_json()
     tool_name = hook.get("tool_name") or ""
+    _TOOL_NAME = tool_name
     if tool_name not in ("Edit", "Write"):
         _noop(f"not Edit/Write (got {tool_name})")
 

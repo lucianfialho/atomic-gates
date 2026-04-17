@@ -42,13 +42,20 @@ _LIB_DIR = Path(__file__).resolve().parent
 if str(_LIB_DIR) not in sys.path:
     sys.path.insert(0, str(_LIB_DIR))
 
+from gate_log import log_decision  # noqa: E402
+
+_GATE_NAME = "pr_structure"
+_TOOL_NAME = ""
+
 
 def _noop(reason: str) -> None:
+    log_decision(_GATE_NAME, _TOOL_NAME, "allow", reason)
     print(f"[gate-pr-structure] noop: {reason}", file=sys.stderr)
     sys.exit(0)
 
 
 def _block(message: str) -> None:
+    log_decision(_GATE_NAME, _TOOL_NAME, "block", message.splitlines()[0] if message else "")
     sys.stderr.write(message.rstrip() + "\n")
     sys.exit(2)
 
@@ -180,7 +187,9 @@ def find_missing_sections(body: str, required: list[str]) -> list[str]:
 
 
 def main() -> None:
+    global _TOOL_NAME
     hook = read_stdin_json()
+    _TOOL_NAME = hook.get("tool_name") or ""
     if hook.get("tool_name") != "Bash":
         _noop("not a Bash call")
     if not is_gh_pr_create(hook.get("tool_input") or {}):
