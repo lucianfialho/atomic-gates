@@ -47,6 +47,12 @@
         "hooks": [
           {
             "type": "command",
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/lib/stop_enforce.py",
+            "timeout": 30,
+            "statusMessage": "Checking for unfinished state-machine runs..."
+          },
+          {
+            "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/scripts/check-tests.sh",
             "timeout": 120,
             "statusMessage": "Running quality gates..."
