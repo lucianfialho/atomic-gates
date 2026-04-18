@@ -1,0 +1,495 @@
+diff --git a/.claude/plugins/analytics-copilot/hooks/hooks.json b/.claude/plugins/analytics-copilot/hooks/hooks.json
+index 881862c..cae4d27 100644
+--- a/.claude/plugins/analytics-copilot/hooks/hooks.json
++++ b/.claude/plugins/analytics-copilot/hooks/hooks.json
+@@ -1,5 +1,5 @@
+ {
+-  "description": "Analytics Copilot domain context hooks",
++  "description": "Analytics Copilot domain context and validation hooks",
+   "hooks": {
+     "SessionStart": [
+       {
+@@ -7,6 +7,23 @@
+         "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh",
+         "timeout": 10
+       }
++    ],
++    "PreToolUse": [
++      {
++        "matcher": "Write|Edit",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/validate-chart.py",
++            "timeout": 10
++          },
++          {
++            "type": "command",
++            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/validate-connector.py",
++            "timeout": 10
++          }
++        ]
++      }
+     ]
+   }
+ }
+diff --git a/.claude/plugins/analytics-copilot/hooks/test_hooks.py b/.claude/plugins/analytics-copilot/hooks/test_hooks.py
+new file mode 100644
+index 0000000..165da41
+--- /dev/null
++++ b/.claude/plugins/analytics-copilot/hooks/test_hooks.py
+@@ -0,0 +1,207 @@
++#!/usr/bin/env python3
++"""Tests for PreToolUse validation hooks."""
++import json
++import subprocess
++import sys
++import os
++
++HOOKS_DIR = os.path.dirname(os.path.abspath(__file__))
++CHART_HOOK = os.path.join(HOOKS_DIR, "validate-chart.py")
++CONNECTOR_HOOK = os.path.join(HOOKS_DIR, "validate-connector.py")
++
++passed = 0
++failed = 0
++
++
++def run_hook(script, tool_input, tool_name="Write"):
++    """Run a hook script with the given tool input, return (exit_code, stderr)."""
++    hook_input = json.dumps({"tool_name": tool_name, "tool_input": tool_input})
++    result = subprocess.run(
++        [sys.executable, script],
++        input=hook_input,
++        capture_output=True,
++        text=True,
++        timeout=10,
++    )
++    return result.returncode, result.stderr.strip()
++
++
++def test(name, actual_code, expected_code, stderr=""):
++    global passed, failed
++    if actual_code == expected_code:
++        passed += 1
++        print(f"  PASS  {name}")
++    else:
++        failed += 1
++        print(f"  FAIL  {name} — expected exit {expected_code}, got {actual_code}")
++        if stderr:
++            print(f"        stderr: {stderr}")
++
++
++# ── Chart validation tests ───────────────────────────────────────────
++
++print("\n== validate-chart.py ==")
++
++# 1. Valid LineChart
++code, err = run_hook(CHART_HOOK, {
++    "file_path": "/tmp/test.md",
++    "content": '```json-render\n{"type":"LineChart","props":{"data":[{"d":"1","v":1}],"xKey":"d","lines":[{"key":"v"}]}}\n```',
++})
++test("valid LineChart", code, 0)
++
++# 2. Valid MetricCard in Grid
++code, err = run_hook(CHART_HOOK, {
++    "file_path": "/tmp/test.md",
++    "content": '```json-render\n{"type":"Grid","props":{"columns":2},"children":[{"type":"MetricCard","props":{"label":"Users","value":"100"}}]}\n```',
++})
++test("valid Grid with MetricCard", code, 0)
++
++# 3. Valid PieChart
++code, err = run_hook(CHART_HOOK, {
++    "file_path": "/tmp/test.md",
++    "content": '```json-render\n{"type":"PieChart","props":{"data":[{"name":"A","value":10},{"name":"B","value":20}]}}\n```',
++})
++test("valid PieChart", code, 0)
++
++# 4. Missing xKey on LineChart
++code, err = run_hook(CHART_HOOK, {
++    "file_path": "/tmp/test.md",
++    "content": '```json-render\n{"type":"LineChart","props":{"data":[{"d":"1"}],"lines":[{"key":"v"}]}}\n```',
++})
++test("missing xKey on LineChart", code, 2, err)
++
++# 5. Unknown component type
++code, err = run_hook(CHART_HOOK, {
++    "file_path": "/tmp/test.md",
++    "content": '```json-render\n{"type":"Histogram","props":{}}\n```',
++})
++test("unknown type 'Histogram'", code, 2, err)
++
++# 6. Empty data array
++code, err = run_hook(CHART_HOOK, {
++    "file_path": "/tmp/test.md",
++    "content": '```json-render\n{"type":"BarChart","props":{"data":[],"xKey":"x","bars":[{"key":"y"}]}}\n```',
++})
++test("empty data array", code, 2, err)
++
++# 7. Non-chart content (passthrough)
++code, err = run_hook(CHART_HOOK, {
++    "file_path": "/tmp/readme.md",
++    "content": "# Hello World\nJust some markdown.",
++})
++test("non-chart content passthrough", code, 0)
++
++# 8. PieChart missing name in data item
++code, err = run_hook(CHART_HOOK, {
++    "file_path": "/tmp/test.md",
++    "content": '```json-render\n{"type":"PieChart","props":{"data":[{"value":10}]}}\n```',
++})
++test("PieChart item missing name", code, 2, err)
++
++# 9. Edit tool with new_string
++code, err = run_hook(CHART_HOOK, {
++    "file_path": "/tmp/test.md",
++    "new_string": '```json-render\n{"type":"AreaChart","props":{"data":[{"d":"1","v":1}],"xKey":"d","areas":[{"key":"v"}]}}\n```',
++}, tool_name="Edit")
++test("valid AreaChart via Edit", code, 0)
++
++# 10. Grid without children
++code, err = run_hook(CHART_HOOK, {
++    "file_path": "/tmp/test.md",
++    "content": '```json-render\n{"type":"Grid","props":{"columns":3}}\n```',
++})
++test("Grid missing children", code, 2, err)
++
++
++# ── Connector validation tests ───────────────────────────────────────
++
++print("\n== validate-connector.py ==")
++
++VALID_CONNECTOR = json.dumps([{
++    "id": "semrush",
++    "name": "Semrush",
++    "specUrl": "https://api.semrush.com/openapi.json",
++    "auth": {"type": "apiKey", "paramName": "key", "in": "query"},
++    "enabled": True,
++    "custom": False,
++}])
++
++# 1. Valid connector
++code, err = run_hook(CONNECTOR_HOOK, {
++    "file_path": "/path/to/connectors.json",
++    "content": VALID_CONNECTOR,
++})
++test("valid connector config", code, 0)
++
++# 2. Missing auth.type
++code, err = run_hook(CONNECTOR_HOOK, {
++    "file_path": "/path/to/connectors.json",
++    "content": json.dumps([{
++        "id": "test", "name": "Test", "specUrl": "https://api.test.com/spec",
++        "auth": {}, "enabled": True, "custom": False,
++    }]),
++})
++test("missing auth.type", code, 2, err)
++
++# 3. Invalid auth type
++code, err = run_hook(CONNECTOR_HOOK, {
++    "file_path": "/path/to/connectors.json",
++    "content": json.dumps([{
++        "id": "test", "name": "Test", "specUrl": "https://api.test.com/spec",
++        "auth": {"type": "oauth"}, "enabled": True, "custom": False,
++    }]),
++})
++test("invalid auth type", code, 2, err)
++
++# 4. Missing required fields
++code, err = run_hook(CONNECTOR_HOOK, {
++    "file_path": "/path/to/connectors.json",
++    "content": json.dumps([{"id": "test"}]),
++})
++test("missing required fields", code, 2, err)
++
++# 5. Non-connector file (passthrough)
++code, err = run_hook(CONNECTOR_HOOK, {
++    "file_path": "/path/to/something-else.json",
++    "content": '{"foo": "bar"}',
++})
++test("non-connector file passthrough", code, 0)
++
++# 6. apiKey auth missing paramName
++code, err = run_hook(CONNECTOR_HOOK, {
++    "file_path": "/path/to/connectors.json",
++    "content": json.dumps([{
++        "id": "test", "name": "Test", "specUrl": "https://api.test.com/spec",
++        "auth": {"type": "apiKey"}, "enabled": True, "custom": False,
++    }]),
++})
++test("apiKey missing paramName", code, 2, err)
++
++# 7. header auth missing headerName
++code, err = run_hook(CONNECTOR_HOOK, {
++    "file_path": "/path/to/connectors.json",
++    "content": json.dumps([{
++        "id": "test", "name": "Test", "specUrl": "https://api.test.com/spec",
++        "auth": {"type": "header", "headerName": "X-Api-Key"},
++        "enabled": True, "custom": False,
++    }]),
++})
++test("header auth missing headerValue", code, 2, err)
++
++# 8. Invalid specUrl
++code, err = run_hook(CONNECTOR_HOOK, {
++    "file_path": "/path/to/connectors.json",
++    "content": json.dumps([{
++        "id": "test", "name": "Test", "specUrl": "not-a-url",
++        "auth": {"type": "bearer"}, "enabled": True, "custom": False,
++    }]),
++})
++test("invalid specUrl", code, 2, err)
++
++
++# ── Summary ──────────────────────────────────────────────────────────
++
++print(f"\n{'=' * 40}")
++print(f"Results: {passed} passed, {failed} failed")
++if failed > 0:
++    sys.exit(1)
+diff --git a/.claude/plugins/analytics-copilot/hooks/validate-chart.py b/.claude/plugins/analytics-copilot/hooks/validate-chart.py
+new file mode 100644
+index 0000000..feb7a36
+--- /dev/null
++++ b/.claude/plugins/analytics-copilot/hooks/validate-chart.py
+@@ -0,0 +1,124 @@
++#!/usr/bin/env python3
++"""PreToolUse hook: validate json-render chart configs before Write/Edit.
++
++Receives tool input on stdin as JSON. Checks if the content contains a
++json-render code block and validates the component type and required props.
++
++Exit codes:
++  0 — allow (valid chart or non-chart content)
++  2 — block with error message on stderr
++"""
++import json
++import re
++import sys
++
++VALID_TYPES = {"Grid", "MetricCard", "LineChart", "BarChart", "PieChart", "AreaChart"}
++
++REQUIRED_PROPS = {
++    "MetricCard": ["label", "value"],
++    "LineChart": ["data", "xKey", "lines"],
++    "BarChart": ["data", "xKey", "bars"],
++    "PieChart": ["data"],
++    "AreaChart": ["data", "xKey", "areas"],
++    "Grid": ["children"],
++}
++
++
++def extract_json_render_blocks(text):
++    """Find all ```json-render ... ``` blocks in text."""
++    return re.findall(r"```json-render\s*\n(.*?)```", text, re.DOTALL)
++
++
++def validate_component(node, path="root"):
++    """Recursively validate a json-render component tree."""
++    errors = []
++
++    if not isinstance(node, dict):
++        errors.append(f"{path}: expected object, got {type(node).__name__}")
++        return errors
++
++    comp_type = node.get("type")
++    if not comp_type:
++        errors.append(f"{path}: missing 'type' field")
++        return errors
++
++    if comp_type not in VALID_TYPES:
++        errors.append(
++            f"{path}: unknown type '{comp_type}'. "
++            f"Valid types: {', '.join(sorted(VALID_TYPES))}"
++        )
++        return errors
++
++    props = node.get("props", {})
++    if not isinstance(props, dict):
++        errors.append(f"{path}: 'props' must be an object")
++        return errors
++
++    # Check required props
++    for req in REQUIRED_PROPS.get(comp_type, []):
++        if req == "children":
++            # children is a top-level key, not inside props
++            if not node.get("children"):
++                errors.append(f"{path} ({comp_type}): missing 'children' array")
++        elif req not in props:
++            errors.append(f"{path} ({comp_type}): missing required prop '{req}'")
++
++    # Validate data arrays are not empty
++    if "data" in props:
++        data = props["data"]
++        if isinstance(data, list) and len(data) == 0:
++            errors.append(f"{path} ({comp_type}): 'data' array must not be empty")
++
++    # Validate PieChart data items have name and value
++    if comp_type == "PieChart" and isinstance(props.get("data"), list):
++        for i, item in enumerate(props["data"]):
++            if isinstance(item, dict):
++                if "name" not in item:
++                    errors.append(f"{path}.data[{i}]: PieChart item missing 'name'")
++                if "value" not in item:
++                    errors.append(f"{path}.data[{i}]: PieChart item missing 'value'")
++
++    # Recurse into children
++    for i, child in enumerate(node.get("children", [])):
++        errors.extend(validate_component(child, f"{path}.children[{i}]"))
++
++    return errors
++
++
++def main():
++    try:
++        hook_input = json.load(sys.stdin)
++    except (json.JSONDecodeError, EOFError):
++        sys.exit(0)  # Can't parse input, allow
++
++    tool_input = hook_input.get("tool_input", {})
++
++    # Get content from Write or new_string from Edit
++    content = tool_input.get("content", "") or tool_input.get("new_string", "")
++    if not content:
++        sys.exit(0)
++
++    # Only validate if content contains json-render blocks
++    blocks = extract_json_render_blocks(content)
++    if not blocks:
++        sys.exit(0)
++
++    all_errors = []
++    for i, block in enumerate(blocks):
++        try:
++            tree = json.loads(block)
++        except json.JSONDecodeError as e:
++            all_errors.append(f"json-render block {i + 1}: invalid JSON — {e}")
++            continue
++        all_errors.extend(validate_component(tree, f"block[{i + 1}]"))
++
++    if all_errors:
++        msg = "Chart validation failed:\n" + "\n".join(f"  • {e}" for e in all_errors)
++        print(msg, file=sys.stderr)
++        sys.exit(2)
++
++    sys.exit(0)
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/.claude/plugins/analytics-copilot/hooks/validate-connector.py b/.claude/plugins/analytics-copilot/hooks/validate-connector.py
+new file mode 100644
+index 0000000..6f3cb4d
+--- /dev/null
++++ b/.claude/plugins/analytics-copilot/hooks/validate-connector.py
+@@ -0,0 +1,111 @@
++#!/usr/bin/env python3
++"""PreToolUse hook: validate connector config before Write/Edit.
++
++Intercepts writes to connectors.json files and validates the connector
++schema: required fields, auth type constraints, etc.
++
++Exit codes:
++  0 — allow (valid connector or non-connector file)
++  2 — block with error message on stderr
++"""
++import json
++import sys
++
++VALID_AUTH_TYPES = {"apiKey", "bearer", "header"}
++
++REQUIRED_FIELDS = ["id", "name", "specUrl", "auth", "enabled"]
++
++AUTH_REQUIREMENTS = {
++    "apiKey": ["paramName"],
++    "bearer": [],
++    "header": ["headerName", "headerValue"],
++}
++
++
++def validate_connector(conn, index):
++    """Validate a single connector config object."""
++    errors = []
++    prefix = f"connector[{index}]"
++
++    if not isinstance(conn, dict):
++        errors.append(f"{prefix}: expected object, got {type(conn).__name__}")
++        return errors
++
++    # Check required fields
++    for field in REQUIRED_FIELDS:
++        if field not in conn:
++            errors.append(f"{prefix}: missing required field '{field}'")
++
++    conn_name = conn.get("name", conn.get("id", f"index {index}"))
++
++    # Validate auth block
++    auth = conn.get("auth")
++    if auth is not None:
++        if not isinstance(auth, dict):
++            errors.append(f"{prefix} ({conn_name}): 'auth' must be an object")
++        else:
++            auth_type = auth.get("type")
++            if not auth_type:
++                errors.append(f"{prefix} ({conn_name}): auth missing 'type'")
++            elif auth_type not in VALID_AUTH_TYPES:
++                errors.append(
++                    f"{prefix} ({conn_name}): invalid auth type '{auth_type}'. "
++                    f"Valid: {', '.join(sorted(VALID_AUTH_TYPES))}"
++                )
++            else:
++                for req in AUTH_REQUIREMENTS.get(auth_type, []):
++                    if not auth.get(req):
++                        errors.append(
++                            f"{prefix} ({conn_name}): auth type '{auth_type}' "
++                            f"requires '{req}'"
++                        )
++
++    # Validate specUrl is a URL-like string
++    spec_url = conn.get("specUrl", "")
++    if spec_url and not (spec_url.startswith("http://") or spec_url.startswith("https://")):
++        errors.append(f"{prefix} ({conn_name}): specUrl must start with http:// or https://")
++
++    return errors
++
++
++def main():
++    try:
++        hook_input = json.load(sys.stdin)
++    except (json.JSONDecodeError, EOFError):
++        sys.exit(0)
++
++    tool_input = hook_input.get("tool_input", {})
++    file_path = tool_input.get("file_path", "")
++
++    # Only validate connectors.json files
++    if not file_path.endswith("connectors.json"):
++        sys.exit(0)
++
++    # Get content from Write or new_string from Edit
++    content = tool_input.get("content", "") or tool_input.get("new_string", "")
++    if not content:
++        sys.exit(0)
++
++    try:
++        data = json.loads(content)
++    except json.JSONDecodeError as e:
++        print(f"Connector validation failed: invalid JSON — {e}", file=sys.stderr)
++        sys.exit(2)
++
++    # Handle both array and single-object formats
++    connectors = data if isinstance(data, list) else [data]
++
++    all_errors = []
++    for i, conn in enumerate(connectors):
++        all_errors.extend(validate_connector(conn, i))
++
++    if all_errors:
++        msg = "Connector validation failed:\n" + "\n".join(f"  • {e}" for e in all_errors)
++        print(msg, file=sys.stderr)
++        sys.exit(2)
++
++    sys.exit(0)
++
++
++if __name__ == "__main__":
++    main()
